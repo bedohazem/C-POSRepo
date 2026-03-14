@@ -1,0 +1,325 @@
+﻿<Page x:Class="POS_System.ProductsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Background="{StaticResource Bg}"
+      Foreground="{StaticResource TextBrush}" Opacity="0">
+
+
+    <Page.RenderTransform>
+        <TranslateTransform Y="8"/>
+    </Page.RenderTransform>
+
+    <Page.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.18"/>
+                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                     From="8" To="0" Duration="0:0:0.18"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Page.Triggers>
+
+    <Page.Resources>
+
+        <!-- ✅ Highlight Low Stock rows in Variants list -->
+        <Style x:Key="VariantItemStyle" TargetType="ListViewItem">
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+
+            <Style.Triggers>
+
+                <!-- ✅ Low stock أعلى أولوية -->
+                <DataTrigger Binding="{Binding IsLowStock}" Value="True">
+                    <Setter Property="Background" Value="#2A1B1B"/>
+                    <Setter Property="BorderBrush" Value="#EF4444"/>
+                    <Setter Property="Foreground" Value="#FEE2E2"/>
+                </DataTrigger>
+
+                <!-- ✅ Selected فقط لو مش LowStock -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsLowStock}" Value="False"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#122044"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                </MultiDataTrigger>
+
+                <!-- ✅ Hover فقط لو مش Selected ومش LowStock -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsLowStock}" Value="False"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="{StaticResource Surface2}"/>
+                </MultiDataTrigger>
+
+            </Style.Triggers>
+        </Style>
+
+    </Page.Resources>
+
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <!-- Left panel: minimum + responsive -->
+            <ColumnDefinition Width="2*" MinWidth="360"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="3*" MinWidth="520"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT: Products -->
+        <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+            <DockPanel LastChildFill="True">
+
+                <!-- Header + Search -->
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="Products" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Search -->
+                        <TextBox x:Name="ProductSearchBox"
+                                 Style="{StaticResource DarkTextBoxStyle}"
+                                 TextChanged="ProductSearchBox_TextChanged"
+                                 MinWidth="180"/>
+
+                        <!-- Actions -->
+                        <WrapPanel Grid.Column="2" HorizontalAlignment="Right">
+                            <Button Content="Add"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="AddProduct_Click"
+                                    MinWidth="90"
+                                    Margin="0,0,8,0"/>
+
+                            <Button Content="Edit"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="EditProduct_Click"
+                                    MinWidth="90"
+                                    Margin="0,0,8,0"/>
+
+                            <Button Content="Toggle"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="ToggleProduct_Click"
+                                    MinWidth="90"
+                                    Margin="0,0,8,0"/>
+
+                            <Button Content="Delete"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="DeleteProduct_Click"
+                                    MinWidth="90"/>
+                        </WrapPanel>
+                    </Grid>
+                </StackPanel>
+
+                <!-- List -->
+                <ListView x:Name="ProductsList"
+                          Style="{StaticResource DarkListViewStyle}"
+                          ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                          SelectionChanged="ProductsList_SelectionChanged">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn x:Name="ColId" Header="Id" DisplayMemberBinding="{Binding Id}" Width="70"/>
+                            <GridViewColumn x:Name="ColName" Header="Name" DisplayMemberBinding="{Binding Name}" Width="200"/>
+                            <GridViewColumn x:Name="ColTh" Header="Threshold" DisplayMemberBinding="{Binding LowStockThreshold}" Width="90"/>
+                            <GridViewColumn x:Name="ColActive" Header="Active" DisplayMemberBinding="{Binding IsActive}" Width="90"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </DockPanel>
+        </Border>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Column="1"
+                      Width="10"
+                      HorizontalAlignment="Stretch"
+                      Background="Transparent"
+                      ShowsPreview="True"/>
+
+        <!-- RIGHT: Variants -->
+        <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+            <DockPanel LastChildFill="True">
+
+                <!-- Header -->
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="Variants (Barcode per Variant)" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock x:Name="SelectedProductText" Margin="0,6,0,12" Opacity="0.85"/>
+
+                    <!-- Actions: wrap automatically -->
+                    <WrapPanel>
+                        <Button Content="Add Variant" Style="{StaticResource PrimaryButtonStyle}" Click="AddVariant_Click" Margin="0,0,10,0" MinWidth="110"/>
+                        <Button Content="Edit Variant" Style="{StaticResource DarkButtonStyle}" Click="EditVariant_Click" Margin="0,0,10,0" MinWidth="110"/>
+                        <Button Content="Toggle" Style="{StaticResource DarkButtonStyle}" Click="ToggleVariant_Click" Margin="0,0,10,0" MinWidth="90"/>
+                        <Button Content="Delete" Style="{StaticResource DarkButtonStyle}" Click="DeleteVariant_Click" MinWidth="90"/>
+                    </WrapPanel>
+
+                    <TextBlock Text="* Red rows = Low stock (&lt;= Threshold)" Margin="0,10,0,0" Opacity="0.7"/>
+                </StackPanel>
+
+                <!-- List -->
+                <ListView x:Name="VariantsList"
+                          Margin="0,12,0,0"
+                          Style="{StaticResource DarkListViewStyle}"
+                          ItemContainerStyle="{StaticResource VariantItemStyle}" d:ItemsSource="{d:SampleData ItemCount=5}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Id" DisplayMemberBinding="{Binding Id}" Width="55"/>
+                            <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="180"/>
+                            <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="160"/>
+                            <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                            <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="120"/>
+                            <GridViewColumn Header="Sell" DisplayMemberBinding="{Binding SellPrice}" Width="80"/>
+                            <GridViewColumn Header="Cost" DisplayMemberBinding="{Binding CostPrice}" Width="80"/>
+                            <GridViewColumn Header="Stock" DisplayMemberBinding="{Binding Stock}" Width="70"/>
+                            <GridViewColumn Header="Active" DisplayMemberBinding="{Binding IsActive}" Width="70"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+            </DockPanel>
+        </Border>
+
+        <!-- Overlay Editor (responsive) -->
+        <Grid x:Name="EditorOverlay"
+              Visibility="Collapsed"
+              Grid.ColumnSpan="3"
+              Background="#99000000"
+              Panel.ZIndex="999">
+
+            <!-- margin يخليها متدخلش في الحواف في الشاشات الصغيرة -->
+            <Border Margin="20"
+                    Padding="16"
+                    CornerRadius="18"
+                    BorderBrush="{StaticResource BorderBrushDark}"
+                    BorderThickness="1"
+                    Background="{StaticResource Surface}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MinWidth="420"
+                    MaxWidth="820">
+
+                <!-- لو الشاشة قصيرة، يبقى فيه scroll -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+
+                        <TextBlock x:Name="EditorTitle" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                        <!-- Product editor -->
+                        <StackPanel x:Name="ProductEditor" Visibility="Collapsed">
+
+                            <TextBlock Text="Product Name" Opacity="0.8" Margin="0,0,0,6"/>
+                            <TextBox x:Name="ProdNameBox" Style="{StaticResource DarkTextBoxStyle}"/>
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Low Stock Threshold" Opacity="0.8" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="ProdThresholdBox" Style="{StaticResource DarkTextBoxStyle}" Text="5"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Image Path" Opacity="0.8" Margin="0,0,0,6"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBox x:Name="ProdImagePathBox" Style="{StaticResource DarkTextBoxStyle}" MinWidth="200"/>
+                                        <Button Grid.Column="2"
+                                                Content="Browse"
+                                                Style="{StaticResource DarkButtonStyle}"
+                                                Click="PickImage_Click"
+                                                MinWidth="90"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Grid>
+
+                            <CheckBox x:Name="ProdActiveBox" Content="Active" IsChecked="True" Margin="0,12,0,0" Foreground="White"/>
+
+                        </StackPanel>
+
+                        <!-- Variant editor -->
+                        <StackPanel x:Name="VariantEditor" Visibility="Collapsed">
+
+                            <TextBlock Text="Barcode (Unique)" Opacity="0.8" Margin="0,0,0,6"/>
+                            <TextBox x:Name="VarBarcodeBox" Style="{StaticResource DarkTextBoxStyle}"/>
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Size" Opacity="0.8" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="VarSizeBox" Style="{StaticResource DarkTextBoxStyle}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Color" Opacity="0.8" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="VarColorBox" Style="{StaticResource DarkTextBoxStyle}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Sell Price" Opacity="0.8" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="VarSellPriceBox" Style="{StaticResource DarkTextBoxStyle}" Text="0"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Cost Price" Opacity="0.8" Margin="0,0,0,6"/>
+                                    <TextBox x:Name="VarCostPriceBox" Style="{StaticResource DarkTextBoxStyle}" Text="0"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <CheckBox x:Name="VarActiveBox" Content="Active" IsChecked="True" Margin="0,12,0,0" Foreground="White"/>
+
+                        </StackPanel>
+
+                        <UniformGrid Columns="2" Margin="0,16,0,0">
+                            <Button Content="Save" Height="40" Margin="4"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="EditorSave_Click"/>
+                            <Button Content="Cancel" Height="40" Margin="4"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="EditorCancel_Click"/>
+                        </UniformGrid>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+    </Grid>
+</Page>

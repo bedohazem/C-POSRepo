@@ -1,0 +1,133 @@
+﻿<Page x:Class="POS_System.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg}"
+      Foreground="{StaticResource TextBrush}"
+      Opacity="0">
+
+    <Page.RenderTransform>
+        <TranslateTransform Y="8"/>
+    </Page.RenderTransform>
+
+    <Page.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.18"/>
+                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                     From="8" To="0" Duration="0:0:0.18"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Page.Triggers>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="⚙ Settings"
+                       FontSize="28"
+                       FontWeight="Bold"
+                       Margin="0,0,0,16"/>
+
+            <WrapPanel Grid.Row="1">
+                <!-- Printing -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Width="360"
+                        Margin="0,0,12,12">
+                    <StackPanel>
+                        <TextBlock Text="Printing"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12"/>
+
+                        <CheckBox Content="Print receipt after payment"
+                                  IsChecked="True"
+                                  Checked="Print_Checked"
+                                  Unchecked="Print_Unchecked"
+                                  Margin="0,0,0,10"
+                                  Foreground="{StaticResource TextBrush}"/>
+
+                        <CheckBox Content="Show print dialog"
+                                  IsChecked="False"
+                                  Checked="Dialog_Checked"
+                                  Unchecked="Dialog_Unchecked"
+                                  Margin="0,0,0,12"
+                                  Foreground="{StaticResource TextBrush}"/>
+
+                        <TextBlock Text="Language"
+                                   FontWeight="SemiBold"
+                                   Margin="0,8,0,8"/>
+
+                        <WrapPanel>
+                            <Button Content="عربي"
+                                    Width="120"
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="Arabic_Click"/>
+                            <Button Content="English"
+                                    Width="120"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="English_Click"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Backup / Restore -->
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Width="460"
+                        Margin="0,0,12,12">
+                    <StackPanel>
+                        <TextBlock Text="Backup / Restore"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Database file"
+                                   Opacity="0.75"/>
+                        <TextBox x:Name="DbPathBox"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource DarkTextBoxStyle}"
+                                 Margin="0,6,0,10"/>
+
+                        <TextBlock Text="Backups folder"
+                                   Opacity="0.75"/>
+                        <TextBox x:Name="BackupFolderBox"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource DarkTextBoxStyle}"
+                                 Margin="0,6,0,12"/>
+
+                        <WrapPanel Margin="0,0,0,10">
+                            <Button Content="Backup Now"
+                                    Width="130"
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="BackupNow_Click"/>
+
+                            <Button Content="Restore Backup"
+                                    Width="130"
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource DangerButtonStyle}"
+                                    Click="RestoreBackup_Click"/>
+
+                            <Button Content="Open Folder"
+                                    Width="130"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="OpenBackupFolder_Click"/>
+                        </WrapPanel>
+
+                        <TextBlock x:Name="BackupStatusText"
+                                   Text="No action yet."
+                                   Opacity="0.85"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

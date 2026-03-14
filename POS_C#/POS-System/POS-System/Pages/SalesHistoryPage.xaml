@@ -1,0 +1,189 @@
+﻿<Page x:Class="POS_System.SalesHistoryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg}"
+      Foreground="{StaticResource TextBrush}"
+      Opacity="0">
+
+    <Page.RenderTransform>
+        <TranslateTransform Y="8"/>
+    </Page.RenderTransform>
+
+    <Page.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.18"/>
+                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                     From="8" To="0" Duration="0:0:0.18"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Page.Triggers>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.25*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Top Bar -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2"
+                Style="{StaticResource CardBorderStyle}"
+                Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Sales History"
+                               FontSize="22"
+                               FontWeight="Bold"/>
+                    <TextBlock Text="Search invoices and reprint receipts"
+                               Opacity="0.75"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <TextBox x:Name="SearchBox"
+                             Width="240"
+                             Height="38"
+                             Margin="0,0,8,0"
+                             Style="{StaticResource DarkTextBoxStyle}"
+                             TextChanged="SearchBox_TextChanged"/>
+
+                    <ComboBox x:Name="TypeFilterBox"
+                              Width="120"
+                              Height="38"
+                              Style="{StaticResource DarkComboStyle}"
+                              SelectionChanged="TypeFilterBox_SelectionChanged">
+                        <ComboBoxItem Content="All" Tag=""/>
+                        <ComboBoxItem Content="Sale" Tag="Sale"/>
+                        <ComboBoxItem Content="Return" Tag="Return"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Left: invoices -->
+        <Border Grid.Row="1" Grid.Column="0"
+                Style="{StaticResource CardBorderStyle}"
+                Margin="0,0,12,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top"
+                           Text="Invoices"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Margin="0,0,0,10"/>
+
+                <ListView x:Name="SalesList"
+                          Style="{StaticResource DarkListViewStyle}"
+                          ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                          SelectionChanged="SalesList_SelectionChanged">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Id" DisplayMemberBinding="{Binding Id}" Width="70"/>
+                            <GridViewColumn Header="Date" DisplayMemberBinding="{Binding DisplayDate}" Width="175"/>
+                            <GridViewColumn Header="Type" DisplayMemberBinding="{Binding Type}" Width="80"/>
+                            <GridViewColumn Header="Total" DisplayMemberBinding="{Binding GrandTotal}" Width="90"/>
+                            <GridViewColumn Header="Method" DisplayMemberBinding="{Binding PaymentMethod}" Width="90"/>
+                            <GridViewColumn Header="Cashier" DisplayMemberBinding="{Binding Username}" Width="100"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </DockPanel>
+        </Border>
+
+        <!-- Right: details -->
+        <Border Grid.Row="1" Grid.Column="1"
+                Style="{StaticResource CardBorderStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Invoice Details"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Margin="0,0,0,10"/>
+
+                <!-- Header info -->
+                <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Invoice Id" Opacity="0.7"/>
+                        <TextBlock x:Name="SaleIdText" Text="-" FontWeight="SemiBold" Margin="0,2,0,8"/>
+
+                        <TextBlock Text="Date" Opacity="0.7"/>
+                        <TextBlock x:Name="SaleDateText" Text="-" FontWeight="SemiBold" Margin="0,2,0,8"/>
+
+                        <TextBlock Text="Customer" Opacity="0.7"/>
+                        <TextBlock x:Name="CustomerText" Text="-" FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Payment Method" Opacity="0.7"/>
+                        <TextBlock x:Name="MethodText" Text="-" FontWeight="SemiBold" Margin="0,2,0,8"/>
+
+                        <TextBlock Text="Grand Total" Opacity="0.7"/>
+                        <TextBlock x:Name="TotalText" Text="-" FontWeight="SemiBold" Margin="0,2,0,8"/>
+
+                        <TextBlock Text="Paid / Change" Opacity="0.7"/>
+                        <TextBlock x:Name="PaidChangeText" Text="-" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Items -->
+                <ListView Grid.Row="2"
+                          x:Name="ItemsList"
+                          Style="{StaticResource DarkListViewStyle}"
+                          ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                          Margin="0,0,0,10">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="150"/>
+                            <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="120"/>
+                            <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="60"/>
+                            <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="80"/>
+                            <GridViewColumn Header="Qty" DisplayMemberBinding="{Binding Qty}" Width="50"/>
+                            <GridViewColumn Header="Price" DisplayMemberBinding="{Binding UnitPrice}" Width="70"/>
+                            <GridViewColumn Header="Total" DisplayMemberBinding="{Binding LineTotalAfterDiscount}" Width="90"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+                <!-- Footer -->
+                <WrapPanel Grid.Row="3">
+                    <Button x:Name="ReprintButton"
+                            Content="Reprint"
+                            Width="130"
+                            Height="42"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Click="ReprintButton_Click"/>
+
+                    <Button Content="Refresh"
+                            Width="130"
+                            Height="42"
+                            Margin="8,0,0,0"
+                            Style="{StaticResource DarkButtonStyle}"
+                            Click="RefreshButton_Click"/>
+                </WrapPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

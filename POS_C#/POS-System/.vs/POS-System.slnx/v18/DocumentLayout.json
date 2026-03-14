@@ -1,0 +1,53 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\POS_C#\\POS-System\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{8C071BF4-95C0-FBFB-684B-EA309B7769E4}|POS-System\\POS-System.csproj|d:\\pos_c#\\pos-system\\pos-system\\pages\\salespage.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8C071BF4-95C0-FBFB-684B-EA309B7769E4}|POS-System\\POS-System.csproj|solutionrelative:pos-system\\pages\\salespage.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8C071BF4-95C0-FBFB-684B-EA309B7769E4}|POS-System\\POS-System.csproj|d:\\pos_c#\\pos-system\\pos-system\\pages\\salespage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{8C071BF4-95C0-FBFB-684B-EA309B7769E4}|POS-System\\POS-System.csproj|solutionrelative:pos-system\\pages\\salespage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 100,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 64,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "SalesPage.xaml.cs",
+              "DocumentMoniker": "D:\\POS_C#\\POS-System\\POS-System\\Pages\\SalesPage.xaml.cs",
+              "RelativeDocumentMoniker": "POS-System\\Pages\\SalesPage.xaml.cs",
+              "ToolTip": "D:\\POS_C#\\POS-System\\POS-System\\Pages\\SalesPage.xaml.cs",
+              "RelativeToolTip": "POS-System\\Pages\\SalesPage.xaml.cs",
+              "ViewState": "AgIAAAIDAAAAAAAAAAAwwCEDAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-13T18:21:33.658Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SalesPage.xaml",
+              "DocumentMoniker": "D:\\POS_C#\\POS-System\\POS-System\\Pages\\SalesPage.xaml",
+              "RelativeDocumentMoniker": "POS-System\\Pages\\SalesPage.xaml",
+              "ToolTip": "D:\\POS_C#\\POS-System\\POS-System\\Pages\\SalesPage.xaml",
+              "RelativeToolTip": "POS-System\\Pages\\SalesPage.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-03-13T18:21:29.264Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

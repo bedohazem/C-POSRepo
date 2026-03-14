@@ -1,0 +1,435 @@
+﻿<Page x:Class="POS_System.SalesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg}"
+      Foreground="{StaticResource TextBrush}" Opacity="0">
+
+
+    <Page.RenderTransform>
+        <TranslateTransform Y="8"/>
+    </Page.RenderTransform>
+
+    <Page.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.18"/>
+                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                     From="8" To="0" Duration="0:0:0.18"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Page.Triggers>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="2*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- TOP BAR -->
+        <Border Grid.ColumnSpan="2" Grid.Row="0"
+                Style="{StaticResource CardBorderStyle}"
+                Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2.2*"/>
+                    <ColumnDefinition Width="1.2*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Scan -->
+                <StackPanel>
+                    <TextBlock Text="Scan barcode or search (variant barcode)"
+                               FontWeight="SemiBold"
+                               Opacity="0.9"
+                               Margin="0,0,0,8"/>
+
+                    <TextBox x:Name="BarcodeBox"
+                             Height="44"
+                             FontSize="16"
+                             Style="{StaticResource DarkTextBoxStyle}"
+                             KeyDown="BarcodeBox_KeyDown"
+                             TextChanged="BarcodeBox_TextChanged"/>
+                </StackPanel>
+
+                <!-- Right -->
+                <StackPanel Grid.Column="1" HorizontalAlignment="Stretch">
+
+                    <!-- Header info -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="Cashier" Opacity="0.7" FontSize="12"/>
+                            <TextBlock x:Name="CashierText" FontWeight="SemiBold"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                            <TextBlock Text="Branch" Opacity="0.7" FontSize="12" HorizontalAlignment="Right"/>
+                            <TextBlock x:Name="BranchText" Opacity="0.9" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Invoice Discount -->
+                    <Border Margin="0,12,0,0" Padding="12" CornerRadius="16"
+                            Background="{StaticResource Bg}"
+                            BorderBrush="{StaticResource BorderBrushDark}"
+                            BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Invoice Discount" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox x:Name="InvoiceDiscountBox"
+                                         Grid.Column="0"
+                                         Style="{StaticResource DarkTextBoxStyle}"
+                                         Height="34"
+                                         TextChanged="InvoiceDiscountBox_TextChanged"/>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <RadioButton x:Name="InvoiceDiscPercent" Content="%" IsChecked="True"
+                                                 Checked="InvoiceDiscountOption_Checked"/>
+                                    <RadioButton x:Name="InvoiceDiscAmount" Content="EGP"
+                                                 Checked="InvoiceDiscountOption_Checked"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Customer -->
+                    <Border Margin="0,12,0,0" Padding="12" CornerRadius="16"
+                            Background="{StaticResource Bg}"
+                            BorderBrush="{StaticResource BorderBrushDark}"
+                            BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Customer" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                            <TextBlock x:Name="SelectedCustomerText"
+                                       Opacity="0.85"
+                                       Text="Customer: Walk-in"
+                                       Margin="0,0,0,4"/>
+
+                            <TextBlock x:Name="CustomerDiscText"
+                                       Opacity="0.75"
+                                       Text="Customer Discount: 0.00"
+                                       Margin="0,0,0,10"/>
+
+                            <WrapPanel>
+                                <Button Content="Select"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Click="PickCustomer_Click"
+                                        MinWidth="110"/>
+                                <Button Content="Clear"
+                                        Margin="10,0,0,0"
+                                        Style="{StaticResource DarkButtonStyle}"
+                                        Click="ClearCustomer_Click"
+                                        MinWidth="110"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- SEARCH RESULTS -->
+        <Border Grid.Column="0" Grid.Row="1"
+                Style="{StaticResource CardBorderStyle}"
+                Margin="0,0,12,0">
+            <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Top"
+                           Text="Search Results (Variants)"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Margin="0,0,0,10"/>
+
+                <ListView x:Name="ProductsList"
+                          Style="{StaticResource DarkListViewStyle}"
+                          ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                          SelectionMode="Single"
+                          MouseDoubleClick="ProductsList_MouseDoubleClick">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="220"/>
+                            <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="170"/>
+                            <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="90"/>
+                            <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="120"/>
+                            <GridViewColumn Header="Price" DisplayMemberBinding="{Binding SellPrice}" Width="90"/>
+                            <GridViewColumn Header="Stock" DisplayMemberBinding="{Binding Stock}" Width="80"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </DockPanel>
+        </Border>
+
+        <!-- CART -->
+        <Border Grid.Column="1" Grid.Row="1"
+                Style="{StaticResource CardBorderStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Title -->
+                <TextBlock Grid.Row="0"
+                           Text="Cart"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Margin="0,0,0,10"/>
+
+                <!-- Cart List -->
+                <ListView Grid.Row="1"
+                          x:Name="CartList"
+                          Style="{StaticResource DarkListViewStyle}"
+                          ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          Margin="0,0,0,10">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="120"/>
+                            <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="60"/>
+                            <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="80"/>
+
+                            <GridViewColumn Header="Qty" Width="120">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource Bg}"
+                                                BorderBrush="{StaticResource BorderBrushDark}"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="6"
+                                                HorizontalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="−" Width="28" Height="28"
+                                                        Style="{StaticResource DarkButtonStyle}"
+                                                        Click="QtyMinus_Click"/>
+                                                <TextBlock Text="{Binding Qty}" Width="36"
+                                                           TextAlignment="Center" VerticalAlignment="Center"
+                                                           FontWeight="SemiBold"/>
+                                                <Button Content="+" Width="28" Height="28"
+                                                        Style="{StaticResource DarkButtonStyle}"
+                                                        Click="QtyPlus_Click"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+
+                            <GridViewColumn Header="Disc" Width="150">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <TextBox Width="70"
+                                                     Height="35"
+                                                     Style="{StaticResource DarkTextBoxStyle}"
+                                                     Text="{Binding DiscountValue, StringFormat=0.##}"
+                                                     TextChanged="LineDiscountValue_TextChanged"/>
+
+                                            <ComboBox Width="60"
+                                                      Height="28"
+                                                      Margin="8,0,0,0"
+                                                      SelectedIndex="0"
+                                                      SelectionChanged="LineDiscountType_SelectionChanged"
+                                                      Style="{StaticResource DiscountComboStyle}">
+                                                <ComboBoxItem Content="%" Tag="Percent"/>
+                                                <ComboBoxItem Content="EGP" Tag="Amount"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+
+                            <GridViewColumn Header="Total" DisplayMemberBinding="{Binding LineTotalAfterDiscount}" Width="90"/>
+
+                            <GridViewColumn Header="X" Width="44">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="✖"
+                                                Width="34" Height="28"
+                                                Style="{StaticResource DangerButtonStyle}"
+                                                Click="RemoveItem_Click"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+                <!-- Footer -->
+                <Border Grid.Row="2"
+                        Background="{StaticResource Bg}"
+                        BorderBrush="{StaticResource BorderBrushDark}"
+                        BorderThickness="1"
+                        CornerRadius="16"
+                        Padding="12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+
+                            <!-- Totals -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="SubTotal" Opacity="0.9"/>
+                                <TextBlock x:Name="SubTotalText" Grid.Column="1" Text="0.00" Opacity="0.9"/>
+
+                                <TextBlock Grid.Row="1" Text="Invoice Discount" Opacity="0.75"/>
+                                <TextBlock x:Name="InvoiceDiscountText" Grid.Row="1" Grid.Column="1" Text="0.00" Opacity="0.75"/>
+
+                                <TextBlock Grid.Row="2" Text="Total" FontSize="18" FontWeight="Bold"/>
+                                <TextBlock x:Name="TotalText" Grid.Row="2" Grid.Column="1" Text="0.00" FontSize="18" FontWeight="Bold"/>
+                            </Grid>
+
+                            <!-- Pay buttons -->
+                            <WrapPanel Margin="0,0,0,8" ItemHeight="44">
+                                <Button MinWidth="120" Height="44" Margin="4,0,4,0" Content="Cash"
+                                        Style="{StaticResource PrimaryButtonStyle}" Click="PayCash_Click"/>
+                                <Button MinWidth="120" Height="44" Margin="4,0,4,0" Content="Visa"
+                                        Style="{StaticResource DarkButtonStyle}" Click="PayVisa_Click"/>
+                                <Button MinWidth="120" Height="44" Margin="4,0,4,0" Content="Transfer"
+                                        Style="{StaticResource DarkButtonStyle}" Click="PayTransfer_Click"/>
+                                <Button MinWidth="120" Height="44" Margin="4,0,4,0" Content="Split"
+                                        Style="{StaticResource DarkButtonStyle}" Click="PaySplit_Click"/>
+                            </WrapPanel>
+
+                            <WrapPanel>
+                                <Button MinWidth="120" Height="44" Margin="4" Content="Print"
+                                        Style="{StaticResource DarkButtonStyle}" Click="PrintReceipt_Click"/>
+                                <Button MinWidth="120" Height="44" Margin="4" Content="Clear"
+                                        Style="{StaticResource DarkButtonStyle}" Click="Clear_Click"/>
+                            </WrapPanel>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- PAYMENT OVERLAY -->
+        <Grid x:Name="PaymentOverlay" Visibility="Collapsed"
+              Grid.RowSpan="2" Grid.ColumnSpan="2"
+              Background="#99000000">
+            <Border Width="520" Padding="16" CornerRadius="18"
+                    BorderBrush="{StaticResource BorderBrushDark}"
+                    BorderThickness="1"
+                    Background="{StaticResource Surface}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.35"/>
+                </Border.Effect>
+
+                <StackPanel>
+                    <TextBlock x:Name="PayTitle" Text="Payment" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock Text="Total" Opacity="0.8"/>
+                    <TextBlock x:Name="PayTotalText" Text="0.00" FontSize="26" FontWeight="Bold" Margin="0,0,0,14"/>
+
+                    <TextBlock Text="Received" Opacity="0.8"/>
+                    <TextBox x:Name="ReceivedBox" Height="38" FontSize="16"
+                             Style="{StaticResource DarkTextBoxStyle}"
+                             Margin="0,0,0,10"/>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Change / Remaining" Opacity="0.8"/>
+                        <TextBlock x:Name="ChangeText" Grid.Column="1" Text="0.00" FontWeight="SemiBold"/>
+                    </Grid>
+
+                    <UniformGrid Columns="2">
+                        <Button Height="42" Margin="4" Content="Confirm"
+                                Style="{StaticResource PrimaryButtonStyle}" Click="ConfirmPayment_Click"/>
+                        <Button Height="42" Margin="4" Content="Cancel"
+                                Style="{StaticResource DarkButtonStyle}" Click="CancelPayment_Click"/>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- CUSTOMER OVERLAY -->
+        <Grid x:Name="CustomerOverlay" Visibility="Collapsed"
+              Grid.RowSpan="2" Grid.ColumnSpan="2"
+              Background="#99000000">
+
+            <Border Width="720" Padding="16" CornerRadius="18"
+                    BorderBrush="{StaticResource BorderBrushDark}"
+                    BorderThickness="1"
+                    Background="{StaticResource Surface}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.35"/>
+                </Border.Effect>
+
+                <DockPanel LastChildFill="True">
+
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                        <TextBlock Text="Select Customer" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                        <TextBox x:Name="CustomerSearchBox"
+                                 Style="{StaticResource DarkTextBoxStyle}"
+                                 Height="36"
+                                 VerticalContentAlignment="Center"
+                                 TextChanged="CustomerSearchBox_TextChanged"/>
+
+                        <TextBlock Text="Tip: Double click to select"
+                                   Opacity="0.7"
+                                   Margin="0,8,0,0"/>
+                    </StackPanel>
+
+                    <ListView x:Name="CustomersList"
+                              Style="{StaticResource DarkListViewStyle}"
+                              ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                              MouseDoubleClick="CustomersList_MouseDoubleClick">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Id" DisplayMemberBinding="{Binding Id}" Width="70"/>
+                                <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="220"/>
+                                <GridViewColumn Header="Phone" DisplayMemberBinding="{Binding Phone}" Width="170"/>
+                                <GridViewColumn Header="Points" DisplayMemberBinding="{Binding LoyaltyPoints}" Width="90"/>
+                                <GridViewColumn Header="DiscType" DisplayMemberBinding="{Binding SpecialDiscountType}" Width="90"/>
+                                <GridViewColumn Header="DiscVal" DisplayMemberBinding="{Binding SpecialDiscountValue}" Width="90"/>
+                                <GridViewColumn Header="Active" DisplayMemberBinding="{Binding IsActive}" Width="80"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <UniformGrid DockPanel.Dock="Bottom" Columns="2" Margin="0,12,0,0">
+                        <Button Height="42" Margin="4" Content="Select"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="CustomerSelect_Click"/>
+                        <Button Height="42" Margin="4" Content="Cancel"
+                                Style="{StaticResource DarkButtonStyle}"
+                                Click="CustomerOverlayCancel_Click"/>
+                    </UniformGrid>
+
+                </DockPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</Page>

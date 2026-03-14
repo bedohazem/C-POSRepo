@@ -1,0 +1,220 @@
+﻿<Page x:Class="POS_System.ReportsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg}"
+      Foreground="{StaticResource TextBrush}" Opacity="0">
+
+
+
+    <Page.RenderTransform>
+        <TranslateTransform Y="8"/>
+    </Page.RenderTransform>
+
+    <Page.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.18"/>
+                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                     From="8" To="0" Duration="0:0:0.18"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Page.Triggers>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Filter -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="التقارير" FontSize="20" FontWeight="Bold"/>
+                    <TextBlock x:Name="BranchLabel" Opacity="0.8" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="من" Opacity="0.8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <DatePicker x:Name="FromDate" Width="140"/>
+
+                    <TextBlock Text="إلى" Opacity="0.8" Margin="12,0,8,0" VerticalAlignment="Center"/>
+                    <DatePicker x:Name="ToDate" Width="140"/>
+
+                    <ComboBox x:Name="GroupByBox" Width="120" Margin="12,0,0,0">
+                        <ComboBoxItem Content="يومي" IsSelected="True"/>
+                        <ComboBoxItem Content="شهري"/>
+                    </ComboBox>
+
+                    <Button Content="تحديث" Margin="12,0,0,0"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Click="Refresh_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Tabs -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+
+            <TabItem Header="المبيعات">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <DockPanel>
+                        <UniformGrid DockPanel.Dock="Top" Columns="5" Margin="0,0,0,10">
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="4" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="عدد الفواتير" Opacity="0.7" Foreground="White"/>
+                                    <TextBlock x:Name="SalesInvoicesText" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="4" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="Net Sales" Opacity="0.7" Foreground="White"/>
+                                    <TextBlock x:Name="NetSalesText" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="4" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="SubTotal" Opacity="0.7" Foreground="White"/>
+                                    <TextBlock x:Name="SubTotalText" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="4" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="Discounts" Opacity="0.7" Foreground="White"/>
+                                    <TextBlock x:Name="DiscountsText" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="4" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="Returns" Opacity="0.7" Foreground="White"/>
+                                    <TextBlock x:Name="ReturnsText" FontSize="18" FontWeight="Bold" Foreground="#FCA5A5"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <ListView x:Name="SalesByPeriodList" 
+                                  Style="{StaticResource DarkListViewStyle}"
+                                  ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Period" DisplayMemberBinding="{Binding Period}" Width="160"/>
+                                    <GridViewColumn Header="Invoices" DisplayMemberBinding="{Binding Invoices}" Width="100"/>
+                                    <GridViewColumn Header="NetSales" DisplayMemberBinding="{Binding NetSales}" Width="140"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+
+            <TabItem Header="صافي الربح">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="* الربح يعتمد على UnitCost المخزن وقت البيع."
+                                   Opacity="0.7" Margin="0,0,0,10" Foreground="White"/>
+                        <ListView x:Name="ProfitList" 
+                                  Style="{StaticResource DarkListViewStyle}"
+                                  ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Period" DisplayMemberBinding="{Binding Period}" Width="160"/>
+                                    <GridViewColumn Header="Profit" DisplayMemberBinding="{Binding Profit}" Width="140"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+
+            <TabItem Header="المنتجات">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,10,0">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="🏆 أكثر المنتجات مبيعاً" FontWeight="Bold" Margin="0,0,0,10" Foreground="White"/>
+                            <ListView x:Name="TopProductsList" 
+                                      Style="{StaticResource DarkListViewStyle}"
+                                      ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Name" DisplayMemberBinding="{Binding ProductName}" Width="170"/>
+                                        <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="120"/>
+                                        <GridViewColumn Header="Qty" DisplayMemberBinding="{Binding Qty}" Width="70"/>
+                                        <GridViewColumn Header="Revenue" DisplayMemberBinding="{Binding Revenue}" Width="100"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="📉 أقل المنتجات مبيعاً" FontWeight="Bold" Margin="0,0,0,10" Foreground="White"/>
+                            <ListView x:Name="LowProductsList" 
+                                      Style="{StaticResource DarkListViewStyle}"
+                                      ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Name" DisplayMemberBinding="{Binding ProductName}" Width="170"/>
+                                        <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="120"/>
+                                        <GridViewColumn Header="Qty" DisplayMemberBinding="{Binding Qty}" Width="70"/>
+                                        <GridViewColumn Header="Revenue" DisplayMemberBinding="{Binding Revenue}" Width="100"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="طرق الدفع">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <ListView x:Name="PaymentsList" 
+                              Style="{StaticResource DarkListViewStyle}"
+                              ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Method" DisplayMemberBinding="{Binding Method}" Width="160"/>
+                                <GridViewColumn Header="Invoices" DisplayMemberBinding="{Binding Invoices}" Width="120"/>
+                                <GridViewColumn Header="Total" DisplayMemberBinding="{Binding Total}" Width="160"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Border>
+            </TabItem>
+
+            <TabItem Header="أداء الكاشير">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <ListView x:Name="CashiersList" 
+                              Style="{StaticResource DarkListViewStyle}"
+                              ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Cashier" DisplayMemberBinding="{Binding Username}" Width="160"/>
+                                <GridViewColumn Header="Sales Inv" DisplayMemberBinding="{Binding SalesInvoices}" Width="90"/>
+                                <GridViewColumn Header="Sales Total" DisplayMemberBinding="{Binding SalesTotal}" Width="120"/>
+                                <GridViewColumn Header="Returns" DisplayMemberBinding="{Binding ReturnTotal}" Width="120"/>
+                                <GridViewColumn Header="Net" DisplayMemberBinding="{Binding Net}" Width="120"/>
+                                <GridViewColumn Header="Avg" DisplayMemberBinding="{Binding AvgInvoice}" Width="100"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Border>
+            </TabItem>
+
+        </TabControl>
+
+    </Grid>
+</Page>

@@ -1,0 +1,149 @@
+﻿<Page x:Class="POS_System.ReturnsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg}" Foreground="{StaticResource TextBrush}" Opacity="0">
+
+    
+    <Page.RenderTransform>
+        <TranslateTransform Y="8"/>
+    </Page.RenderTransform>
+
+    <Page.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.18"/>
+                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                     From="8" To="0" Duration="0:0:0.18"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Page.Triggers>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top bar -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="المرتجعات" FontSize="20" FontWeight="Bold"/>
+                    <TextBlock x:Name="SaleInfoText" Text="ابحث برقم الفاتورة" Opacity="0.75" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBox x:Name="SaleIdBox" Width="160" Margin="0,0,10,0"
+                             Style="{StaticResource DarkTextBoxStyle}"
+                             ToolTip="رقم الفاتورة"
+                             KeyDown="SaleIdBox_KeyDown"/>
+
+                    <Button Content="بحث" Style="{StaticResource PrimaryButtonStyle}" Click="Search_Click" Margin="0,0,10,0"/>
+                    <Button Content="تفريغ" Style="{StaticResource DarkButtonStyle}" Click="Clear_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: Sale Items -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+                <DockPanel>
+
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <TextBlock Text="أصناف الفاتورة" FontSize="18" FontWeight="Bold"/>
+                        <TextBlock Text="اختار الصنف واضغط (إرجاع)" Opacity="0.7" Margin="0,6,0,0"/>
+                    </StackPanel>
+
+                    <ListView x:Name="SaleItemsList"
+                              Style="{StaticResource DarkListViewStyle}"
+                              ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                              SelectionMode="Single">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="160"/>
+                                <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                                <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="110"/>
+                                <GridViewColumn Header="Qty" DisplayMemberBinding="{Binding Qty}" Width="60"/>
+                                <GridViewColumn Header="Returned" DisplayMemberBinding="{Binding AlreadyReturnedQty}" Width="80"/>
+                                <GridViewColumn Header="Max" DisplayMemberBinding="{Binding MaxReturnQty}" Width="60"/>
+                                <GridViewColumn Header="Price" DisplayMemberBinding="{Binding UnitPrice}" Width="80"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="إرجاع" Width="120" Style="{StaticResource PrimaryButtonStyle}" Click="AddReturnLine_Click"/>
+                        <Button Content="إزالة" Width="120" Margin="10,0,0,0" Style="{StaticResource DarkButtonStyle}" Click="RemoveReturnLine_Click"/>
+                    </StackPanel>
+
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="10" Background="Transparent" ShowsPreview="True"/>
+
+            <!-- RIGHT: Return Cart -->
+            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                <DockPanel>
+
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <TextBlock Text="سلة المرتجع" FontSize="18" FontWeight="Bold"/>
+                        <TextBlock x:Name="ReturnTotalText" Text="Total: 0.00" Opacity="0.8" Margin="0,6,0,0"/>
+                    </StackPanel>
+
+                    <ListView x:Name="ReturnCartList" 
+                              Style="{StaticResource DarkListViewStyle}"
+                              ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="150"/>
+                                <GridViewColumn Header="Qty" DisplayMemberBinding="{Binding Qty}" Width="60"/>
+                                <GridViewColumn Header="Total" DisplayMemberBinding="{Binding LineTotalAfterDiscount}" Width="90"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="إتمام المرتجع" Height="40" Style="{StaticResource PrimaryButtonStyle}" Click="ConfirmReturn_Click"/>
+                        <Button Content="مسح السلة" Height="40" Margin="10,0,0,0" Style="{StaticResource DarkButtonStyle}" Click="ClearReturnCart_Click"/>
+                    </StackPanel>
+
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Overlay: Return Qty -->
+        <Grid x:Name="QtyOverlay" Visibility="Collapsed" Background="#99000000" Panel.ZIndex="999" Grid.RowSpan="2">
+            <Border Width="420" Padding="16" CornerRadius="18"
+                    BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="1"
+                    Background="{StaticResource Surface}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="كمية المرتجع" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="QtyHintText" Opacity="0.8" Margin="0,0,0,10"/>
+
+                    <TextBox x:Name="QtyBox" Style="{StaticResource DarkTextBoxStyle}" Text="1"/>
+
+                    <UniformGrid Columns="2" Margin="0,16,0,0">
+                        <Button Content="OK" Height="40" Margin="4" Style="{StaticResource PrimaryButtonStyle}" Click="QtyOk_Click"/>
+                        <Button Content="Cancel" Height="40" Margin="4" Style="{StaticResource DarkButtonStyle}" Click="QtyCancel_Click"/>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</Page>

@@ -1,0 +1,406 @@
+﻿<Page x:Class="POS_System.WarehousePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{StaticResource Bg}"
+      Foreground="{StaticResource TextBrush}" Opacity="0">
+
+    
+    <Page.RenderTransform>
+        <TranslateTransform Y="8"/>
+    </Page.RenderTransform>
+
+    <Page.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.18"/>
+                    <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.Y)"
+                                     From="8" To="0" Duration="0:0:0.18"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Page.Triggers>
+
+<Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Bar -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="المخزن" FontSize="20" FontWeight="Bold"/>
+                    <TextBlock x:Name="BranchText" Opacity="0.8" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBox x:Name="GlobalSearchBox"
+                             Width="260"
+                             Style="{StaticResource DarkTextBoxStyle}"
+                             ToolTip="بحث بالباركود أو الاسم"
+                             TextChanged="GlobalSearchBox_TextChanged"/>
+                    <Button Content="Refresh" Margin="10,0,0,0"
+                            Style="{StaticResource DarkButtonStyle}"
+                            Click="Refresh_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Tabs -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+            <!-- ==================== Inventory ==================== -->
+            <TabItem Header="المخزون الحالي" Foreground="White" >
+                <TabItem.Background>
+                    <LinearGradientBrush EndPoint="0,1">
+                        <GradientStop Color="#FFF0F0F0"/>
+                        <GradientStop Color="White" Offset="1"/>
+                    </LinearGradientBrush>
+                </TabItem.Background>
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <DockPanel>
+
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button Content="Stock In (+)" Style="{StaticResource PrimaryButtonStyle}" Click="StockIn_Click"/>
+                            <Button Content="Adjust (+/-)" Margin="10,0,0,0" Style="{StaticResource DarkButtonStyle}" Click="Adjust_Click"/>
+
+                            <CheckBox x:Name="LowStockOnlyBox" Content="Low Stock فقط"
+                                      Margin="18,6,0,0"
+                                      Foreground="#93C5FD"
+                                      Checked="LowStockOnlyBox_Changed"
+                                      Unchecked="LowStockOnlyBox_Changed"/>
+
+                            <TextBlock Margin="18,6,0,0" Opacity="0.85" Foreground="White">
+                                <Run Text="Low Stock:"/>
+                                <Run x:Name="LowStockCountText" Text="0" Foreground="#FCA5A5" FontWeight="Bold"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <ListView x:Name="InventoryList"
+                                  Style="{StaticResource DarkListViewStyle}"
+                                  ItemContainerStyle="{StaticResource LowStockGridViewItemStyle}"
+                                  SelectionMode="Single">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="220"/>
+                                    <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="160"/>
+                                    <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                                    <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="110"/>
+                                    <GridViewColumn Header="Sell" DisplayMemberBinding="{Binding SellPrice}" Width="80"/>
+                                    <GridViewColumn Header="Cost" DisplayMemberBinding="{Binding CostPrice}" Width="80"/>
+                                    <GridViewColumn Header="Stock" DisplayMemberBinding="{Binding Stock}" Width="80"/>
+                                    <GridViewColumn Header="Th" DisplayMemberBinding="{Binding LowStockThreshold}" Width="55"/>
+                                    <GridViewColumn Header="Active" DisplayMemberBinding="{Binding IsActive}" Width="70"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+
+            <!-- ==================== Purchases ==================== -->
+            <TabItem Header="مشتريات الموردين">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="3*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="المورد" Opacity="0.8" Margin="0,0,0,6" Foreground="White"/>
+                                <DockPanel>
+                                    <ComboBox x:Name="SupplierBox"
+                                              Height="34"
+                                              Background="{StaticResource Bg}"
+                                              Foreground="Black"
+                                              BorderBrush="{StaticResource BorderBrushDark}"
+                                              BorderThickness="1"
+                                              Padding="8,2"
+                                              DisplayMemberPath="Name"/>
+                                    <Button Content="+" Width="40" Margin="10,0,0,0"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Click="AddSupplier_Click"/>
+                                </DockPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="بحث صنف (Barcode أو Name)" Opacity="0.8" Margin="0,0,0,6" Foreground="White"/>
+                                <DockPanel>
+                                    <TextBox x:Name="PurchaseItemQueryBox"
+                                             Style="{StaticResource DarkTextBoxStyle}"
+                                             Width="360"
+                                             KeyDown="PurchaseItemQueryBox_KeyDown"/>
+                                    <Button Content="بحث"
+                                            Margin="10,0,0,0"
+                                            Style="{StaticResource DarkButtonStyle}"
+                                            Click="SearchVariant_Click"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Items -->
+                        <Border Grid.Row="1" BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="1" CornerRadius="14" Padding="10" Background="{StaticResource Bg}">
+                            <DockPanel>
+
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                                    <TextBlock Text="إضافة صنف للفاتورة" FontWeight="SemiBold" Margin="0,6,12,0" Foreground="White"/>
+
+                                    <TextBlock Text="Qty" Opacity="0.8" Margin="10,6,6,0" Foreground="White"/>
+                                    <TextBox x:Name="PurchaseQtyBox" Width="90" Style="{StaticResource DarkTextBoxStyle}" Text="1"/>
+
+                                    <TextBlock Text="Unit Cost" Opacity="0.8" Margin="10,6,6,0" Foreground="White"/>
+                                    <TextBox x:Name="PurchaseUnitCostBox" Width="110" Style="{StaticResource DarkTextBoxStyle}" Text="0"/>
+
+                                    <Button Content="Add Item"
+                                            Margin="10,0,0,0"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Click="AddPurchaseItem_Click"/>
+                                    <Button Content="Remove Selected"
+                                            Margin="10,0,0,0"
+                                            Style="{StaticResource DarkButtonStyle}"
+                                            Click="RemovePurchaseItem_Click"/>
+                                </StackPanel>
+
+                                <ListView x:Name="PurchaseItemsList" 
+                                          Style="{StaticResource DarkListViewStyle}"
+                                          ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="200"/>
+                                            <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="160"/>
+                                            <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                                            <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="110"/>
+                                            <GridViewColumn Header="Qty" DisplayMemberBinding="{Binding Qty}" Width="70"/>
+                                            <GridViewColumn Header="UnitCost" DisplayMemberBinding="{Binding UnitCost}" Width="90"/>
+                                            <GridViewColumn Header="LineTotal" DisplayMemberBinding="{Binding LineTotal}" Width="100"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Footer totals -->
+                        <Grid Grid.Row="2" Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel>
+                                <TextBlock Text="Notes (اختياري)" Opacity="0.8" Margin="0,0,0,6" Foreground="White"/>
+                                <TextBox x:Name="PurchaseNotesBox" Style="{StaticResource DarkTextBoxStyle}" Width="520"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" Width="300">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="SubTotal" Opacity="0.8" Margin="0,0,10,6" Foreground="White"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SubTotalText" Text="0" FontWeight="Bold" Foreground="White"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Discount" Opacity="0.8" Margin="0,0,10,6" Foreground="White"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="DiscountBox" Style="{StaticResource DarkTextBoxStyle}" Text="0" TextChanged="Totals_Changed"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Paid" Opacity="0.8" Margin="0,0,10,6" Foreground="White"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="PaidBox" Style="{StaticResource DarkTextBoxStyle}" Text="0" TextChanged="Totals_Changed"/>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Total / Due" Opacity="0.8" Margin="0,0,10,0" Foreground="White"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Foreground="White">
+                                        <Run x:Name="TotalText" Text="0" FontWeight="Bold"/>
+                                        <Run Text="  |  Due: "/>
+                                        <Run x:Name="DueText" Text="0" Foreground="#FCA5A5" FontWeight="Bold"/>
+                                    </TextBlock>
+                                </Grid>
+
+                                <Button Content="Save Purchase"
+                                        Margin="0,10,0,0"
+                                        Height="40"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Click="SavePurchase_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- ==================== Stocktake ==================== -->
+            <TabItem Header="جرد يدوي">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="اكتب باركود أو اسم المنتج، واختر الفاريانت، وبعدين اكتب الكمية الفعلية."
+                                   Opacity="0.8" Margin="0,0,0,10" Foreground="White"/>
+
+                        <DockPanel Grid.Row="1" Margin="0,0,0,10">
+                            <TextBox x:Name="StocktakeQueryBox" Style="{StaticResource DarkTextBoxStyle}" Width="420"
+                                     ToolTip="Barcode أو Name"/>
+                            <Button Content="بحث" Margin="10,0,0,0" Style="{StaticResource DarkButtonStyle}"
+                                    Click="StocktakeSearch_Click"/>
+                        </DockPanel>
+
+                        <ListView Grid.Row="2" 
+                                  x:Name="StocktakeResultsList" 
+                                  Height="200" 
+                                  Style="{StaticResource DarkListViewStyle}"
+                                  ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="200"/>
+                                    <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="160"/>
+                                    <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                                    <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="110"/>
+                                    <GridViewColumn Header="Stock" DisplayMemberBinding="{Binding Stock}" Width="80"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+
+                        <Grid Grid.Row="3" Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="الكمية الفعلية (Actual Qty)" Opacity="0.8" Margin="0,0,0,6" Foreground="White"/>
+                                <TextBox x:Name="ActualQtyBox" Style="{StaticResource DarkTextBoxStyle}" Text="0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Notes (اختياري)" Opacity="0.8" Margin="0,0,0,6" Foreground="White"/>
+                                <TextBox x:Name="StocktakeNotesBox" Style="{StaticResource DarkTextBoxStyle}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Button Grid.Row="4" Content="Apply Stocktake (يسجل ADJUST بالفرق)"
+                                Height="40" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="ApplyStocktake_Click"/>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- ==================== Report ==================== -->
+            <TabItem Header="تقرير المخزون">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button Content="Refresh" Style="{StaticResource DarkButtonStyle}" Click="Refresh_Click"/>
+                            <TextBlock Margin="18,6,0,0" Opacity="0.85" Foreground="White">
+                                <Run Text="Inventory Value (Cost): "/>
+                                <Run x:Name="InventoryValueText" Text="0" Foreground="#93C5FD" FontWeight="Bold"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <ListView x:Name="ReportList" 
+                                  Style="{StaticResource DarkListViewStyle}"
+                                  ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="220"/>
+                                    <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="160"/>
+                                    <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                                    <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="110"/>
+                                    <GridViewColumn Header="Cost" DisplayMemberBinding="{Binding CostPrice}" Width="80"/>
+                                    <GridViewColumn Header="Stock" DisplayMemberBinding="{Binding Stock}" Width="80"/>
+                                    <GridViewColumn Header="Value" DisplayMemberBinding="{Binding ValueAtCost}" Width="100"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+        </TabControl>
+
+        <!-- ========= Overlay: Supplier Add ========= -->
+        <Grid x:Name="SupplierOverlay" Visibility="Collapsed" Background="#88000000" Grid.RowSpan="2">
+            <Border Width="520" Padding="16" CornerRadius="16"
+                    BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="1" Background="{StaticResource Surface}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="إضافة مورد" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Name" Opacity="0.8" Margin="0,0,0,6"/>
+                    <TextBox x:Name="SupNameBox" Style="{StaticResource DarkTextBoxStyle}"/>
+
+                    <TextBlock Text="Phone" Opacity="0.8" Margin="0,12,0,6"/>
+                    <TextBox x:Name="SupPhoneBox" Style="{StaticResource DarkTextBoxStyle}"/>
+
+                    <TextBlock Text="Address" Opacity="0.8" Margin="0,12,0,6"/>
+                    <TextBox x:Name="SupAddressBox" Style="{StaticResource DarkTextBoxStyle}"/>
+
+                    <UniformGrid Columns="2" Margin="0,16,0,0">
+                        <Button Content="Save" Height="40" Margin="4" Style="{StaticResource PrimaryButtonStyle}" Click="SaveSupplier_Click"/>
+                        <Button Content="Cancel" Height="40" Margin="4" Style="{StaticResource DarkButtonStyle}" Click="CancelSupplier_Click"/>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ========= Overlay: Variant Picker (when name matches many) ========= -->
+        <Grid x:Name="PickerOverlay" Visibility="Collapsed" Background="#88000000" Grid.RowSpan="2">
+            <Border Width="760" Padding="16" CornerRadius="16"
+                    BorderBrush="{StaticResource BorderBrushDark}" BorderThickness="1" Background="{StaticResource Surface}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="اختر الفاريانت" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="PickerHintText" Opacity="0.8" Margin="0,0,0,10"/>
+
+                    <ListView x:Name="PickerList" 
+                              Height="320" 
+                              Style="{StaticResource DarkListViewStyle}"
+                              ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="220"/>
+                                <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="160"/>
+                                <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                                <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="110"/>
+                                <GridViewColumn Header="Cost" DisplayMemberBinding="{Binding CostPrice}" Width="80"/>
+                                <GridViewColumn Header="Stock" DisplayMemberBinding="{Binding Stock}" Width="80"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <UniformGrid Columns="2" Margin="0,16,0,0">
+                        <Button Content="Select" Height="40" Margin="4" Style="{StaticResource PrimaryButtonStyle}" Click="PickerSelect_Click"/>
+                        <Button Content="Cancel" Height="40" Margin="4" Style="{StaticResource DarkButtonStyle}" Click="PickerCancel_Click"/>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</Page>
