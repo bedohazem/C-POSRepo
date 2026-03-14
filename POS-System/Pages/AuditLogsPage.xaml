@@ -38,7 +38,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
-                    <TextBlock Text="سجل العمليات" FontSize="21" FontWeight="Bold"/>
+                    <TextBlock Text="سجل العمليات" FontSize="20" FontWeight="Bold"/>
                     <TextBlock Text="بحث بالاسم / الفرع / الأكشن" Opacity="0.75" Margin="0,4,0,0"/>
                 </StackPanel>
 
