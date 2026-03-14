@@ -1,10 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\POS_C#",
-    "\\POS_C#\\POS-System",
-    "\\POS_C#\\POS-System\\POS-System"
+    "\\POS-System",
+    "\\POS-System\\Pages"
   ],
-  "SelectedNode": "\\POS_C#\\POS-System\\POS-System\\Resources",
+  "SelectedNode": "\\POS-System\\Pages\\AuditLogsPage.xaml",
   "PreviewInSolutionExplorer": false
 }
