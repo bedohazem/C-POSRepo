@@ -16,5 +16,5 @@ D:\C#POSRepo\POS-System\App.xaml
 2041448170013
 MainWindow.xaml;Pages\AuditLogsPage.xaml;Pages\BranchesPage.xaml;Pages\CustomersPage.xaml;Pages\LoginPage.xaml;Pages\ProductsPage.xaml;Pages\ReportsPage.xaml;Pages\ReturnsPage.xaml;Pages\SalesHistoryPage.xaml;Pages\SalesPage.xaml;Pages\SettingsPage.xaml;Pages\UsersPage.xaml;Pages\WarehousePage.xaml;Themes\Styles.xaml;Windows\BranchSelectWindow.xaml;Windows\CashPaymentWindow.xaml;Windows\UserEditWindow.xaml;
 
-True
+False
 

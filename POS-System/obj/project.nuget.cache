@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "vp8+7/a+UF8=",
+  "dgSpecHash": "BpJCy+9AY/g=",
   "success": true,
-  "projectFilePath": "D:\\POS_C#\\POS-System\\POS-System\\POS-System.csproj",
+  "projectFilePath": "D:\\C#POSRepo\\POS-System\\POS-System.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\bedoh\\.nuget\\packages\\microsoft.data.sqlite\\10.0.3\\microsoft.data.sqlite.10.0.3.nupkg.sha512",
     "C:\\Users\\bedoh\\.nuget\\packages\\microsoft.data.sqlite.core\\10.0.3\\microsoft.data.sqlite.core.10.0.3.nupkg.sha512",

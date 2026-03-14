@@ -447,11 +447,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\POS_C#\\POS-System\\POS-System\\POS-System.csproj",
+      "projectUniqueName": "D:\\C#POSRepo\\POS-System\\POS-System.csproj",
       "projectName": "POS-System",
-      "projectPath": "D:\\POS_C#\\POS-System\\POS-System\\POS-System.csproj",
+      "projectPath": "D:\\C#POSRepo\\POS-System\\POS-System.csproj",
       "packagesPath": "C:\\Users\\bedoh\\.nuget\\packages\\",
-      "outputPath": "D:\\POS_C#\\POS-System\\POS-System\\obj\\",
+      "outputPath": "D:\\C#POSRepo\\POS-System\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -484,7 +484,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "10.0.100"
+      "SdkAnalysisLevel": "10.0.200"
     },
     "frameworks": {
       "net8.0-windows7.0": {
@@ -518,7 +518,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
