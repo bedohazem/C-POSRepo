@@ -1,3 +1,9 @@
 .vs/POS-System.slnx/FileContentIndex/330a4b96-7052-473c-a399-503cf7471b39.vsidx
 .vs/POS-System.slnx/FileContentIndex/330a4b96-7052-473c-a399-503cf7471b39.vsidx
 POS-System/obj/Debug/net8.0-windows7.0/POS-System.AssemblyInfo.cs
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
