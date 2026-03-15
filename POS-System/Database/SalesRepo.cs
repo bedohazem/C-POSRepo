@@ -208,38 +208,6 @@ VALUES(
 
                 }
 
-                // ✅ Loyalty earned ONLY here (once)
-                if (customerId != null && string.Equals(type, "Sale", StringComparison.OrdinalIgnoreCase))
-                {
-                    var earn = Math.Floor(grandTotal / 10m); // كل 10 جنيه = 1 نقطة
-                    if (earn > 0)
-                    {
-                        using (var cmd = con.CreateCommand())
-                        {
-                            cmd.Transaction = tx;
-                            cmd.CommandText = @"
-INSERT INTO LoyaltyTransactions(CustomerId, Type, Points, RefSaleId, Notes, AtUtc, UserId, BranchId)
-VALUES (@c,'EARN',@p,@ref,@n,@at,@u,@b);";
-                            cmd.Parameters.AddWithValue("@c", customerId.Value);
-                            cmd.Parameters.AddWithValue("@p", (double)earn);
-                            cmd.Parameters.AddWithValue("@ref", saleId);
-                            cmd.Parameters.AddWithValue("@n", "Earn from sale");
-                            cmd.Parameters.AddWithValue("@at", DateTime.UtcNow.ToString("o"));
-                            cmd.Parameters.AddWithValue("@u", userId);
-                            cmd.Parameters.AddWithValue("@b", branchId);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        using (var cmd = con.CreateCommand())
-                        {
-                            cmd.Transaction = tx;
-                            cmd.CommandText = "UPDATE Customers SET LoyaltyPoints = LoyaltyPoints + @p WHERE Id=@id;";
-                            cmd.Parameters.AddWithValue("@id", customerId.Value);
-                            cmd.Parameters.AddWithValue("@p", (double)earn);
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                }
 
                 tx.Commit();
                 AuditLog.Write(

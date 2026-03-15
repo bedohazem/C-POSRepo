@@ -1,14 +1,17 @@
-﻿using POS_System.Security;
+﻿
+using POS_System.Security;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
-using Microsoft.Data.Sqlite;
 using System.Windows.Threading;
+
 
 namespace POS_System
 {
@@ -19,37 +22,102 @@ namespace POS_System
         private bool _isRefreshingCart = false;
         private readonly DispatcherTimer _searchTimer = new();
 
-        private class CartItem
+        private bool _useLoyaltyPoints = false;
+        private decimal _redeemedPoints = 0m;
+        private decimal _loyaltyPointValue = 5m; // كل نقطة = 5 جنيه
+
+
+        private class CartItem : INotifyPropertyChanged
+    {
+        private int _qty = 1;
+        private decimal _discountValue = 0m;
+        private DiscType _discountType = DiscType.Percent;
+
+        public long VariantId { get; set; }
+        public string Name { get; set; } = "";
+        public string Barcode { get; set; } = "";
+        public string Size { get; set; } = "";
+        public string Color { get; set; } = "";
+        public decimal Price { get; set; }
+
+        public int Qty
         {
-            public long VariantId { get; set; }
-            public string Name { get; set; } = "";
-            public string Barcode { get; set; } = "";
-            public string Size { get; set; } = "";
-            public string Color { get; set; } = "";
-            public decimal Price { get; set; }
-            public int Qty { get; set; } = 1;
-
-
-            public decimal DiscountValue { get; set; } = 0m;
-            public DiscType DiscountType { get; set; } = DiscType.Percent;
-
-            public decimal LineTotal => Price * Qty;
-
-            public decimal LineDiscountAmount
+            get => _qty;
+            set
             {
-                get
-                {
-                    if (DiscountValue <= 0) return 0m;
-
-                    if (DiscountType == DiscType.Amount)
-                        return Math.Min(DiscountValue, LineTotal);
-
-                    var p = Math.Min(DiscountValue, 100m);
-                    return LineTotal * (p / 100m);
-                }
+                if (_qty == value) return;
+                _qty = value;
+                NotifyCalculatedChanged();
             }
+        }
 
-            public decimal LineTotalAfterDiscount => LineTotal - LineDiscountAmount;
+        public decimal DiscountValue
+        {
+            get => _discountValue;
+            set
+            {
+                if (_discountValue == value) return;
+                _discountValue = value;
+                NotifyCalculatedChanged();
+            }
+        }
+
+        public DiscType DiscountType
+        {
+            get => _discountType;
+            set
+            {
+                if (_discountType == value) return;
+                _discountType = value;
+                NotifyCalculatedChanged();
+            }
+        }
+
+        public decimal LineTotal => Price * Qty;
+
+        public decimal LineDiscountAmount
+        {
+            get
+            {
+                if (DiscountValue <= 0) return 0m;
+
+                if (DiscountType == DiscType.Amount)
+                    return Math.Min(DiscountValue, LineTotal);
+
+                var p = Math.Min(DiscountValue, 100m);
+                return LineTotal * (p / 100m);
+            }
+        }
+
+        public decimal LineTotalAfterDiscount => LineTotal - LineDiscountAmount;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        private void NotifyCalculatedChanged()
+        {
+            OnPropertyChanged(nameof(Qty));
+            OnPropertyChanged(nameof(DiscountValue));
+            OnPropertyChanged(nameof(DiscountType));
+            OnPropertyChanged(nameof(LineTotal));
+            OnPropertyChanged(nameof(LineDiscountAmount));
+            OnPropertyChanged(nameof(LineTotalAfterDiscount));
+        }
+}
+        private static decimal ParseDecimalSafe(string? text)
+        {
+            var s = (text ?? "").Trim();
+
+            if (string.IsNullOrWhiteSpace(s))
+                return 0m;
+
+            s = s.Replace("٫", ".").Replace(",", ".");
+
+            return decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)
+                ? v
+                : 0m;
         }
 
         // ✅ Search results
@@ -208,8 +276,10 @@ namespace POS_System
         {
             _isRefreshingCart = true;
 
-            CartList.ItemsSource = null;
-            CartList.ItemsSource = _cart;
+            if (CartList.ItemsSource == null)
+                CartList.ItemsSource = _cart;
+
+            CartList.Items.Refresh();
 
             _isRefreshingCart = false;
 
@@ -224,16 +294,26 @@ namespace POS_System
             var afterInvoice = Math.Max(0, subTotal - invoiceDisc);
 
             var custDisc = CalcCustomerDiscount(afterInvoice);
-            var total = Math.Max(0, afterInvoice - custDisc);
+            var afterCustomer = Math.Max(0, afterInvoice - custDisc);
+
+            var loyaltyDisc = CalcLoyaltyDiscount(afterCustomer);
+            var total = Math.Max(0, afterCustomer - loyaltyDisc);
 
             SubTotalText.Text = subTotal.ToString("0.00", CultureInfo.InvariantCulture);
 
-            if (_selectedCustomer != null && custDisc > 0)
-                InvoiceDiscountText.Text = $"{invoiceDisc:0.00} (+Cust {custDisc:0.00})";
-            else
-                InvoiceDiscountText.Text = invoiceDisc.ToString("0.00", CultureInfo.InvariantCulture);
+            var discText = invoiceDisc.ToString("0.00", CultureInfo.InvariantCulture);
 
+            if (_selectedCustomer != null && custDisc > 0)
+                discText += $" (+Cust {custDisc:0.00})";
+
+            if (_selectedCustomer != null && loyaltyDisc > 0)
+                discText += $" (+Points {loyaltyDisc:0.00})";
+
+            InvoiceDiscountText.Text = discText;
             TotalText.Text = total.ToString("0.00", CultureInfo.InvariantCulture);
+
+            if (RedeemPointsText != null)
+                RedeemPointsText.Text = $"Redeemed Points: {_redeemedPoints:0} | Discount: {loyaltyDisc:0.00}";
 
             UpdateCustomerHeader();
         }
@@ -243,10 +323,16 @@ namespace POS_System
         private decimal GetTotal()
         {
             var subTotal = GetSubTotal();
+
             var invDisc = CalcInvoiceDiscount(subTotal);
             var afterInvoice = Math.Max(0, subTotal - invDisc);
+
             var custDisc = CalcCustomerDiscount(afterInvoice);
-            return Math.Max(0, afterInvoice - custDisc);
+            var afterCustomer = Math.Max(0, afterInvoice - custDisc);
+
+            var loyaltyDisc = CalcLoyaltyDiscount(afterCustomer);
+
+            return Math.Max(0, afterCustomer - loyaltyDisc);
         }
 
         private decimal CalcInvoiceDiscount(decimal subTotal)
@@ -274,11 +360,16 @@ namespace POS_System
 
         private void InvoiceDiscountBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            decimal.TryParse(InvoiceDiscountBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out _invoiceDiscountValue);
-            if (_invoiceDiscountValue < 0) _invoiceDiscountValue = 0;
+            _invoiceDiscountValue = ParseDecimalSafe(InvoiceDiscountBox.Text);
 
-            _invoiceDiscountType = (InvoiceDiscAmount.IsChecked == true) ? DiscType.Amount : DiscType.Percent;
-            RefreshCartAndTotals();
+            if (_invoiceDiscountValue < 0)
+                _invoiceDiscountValue = 0;
+
+            _invoiceDiscountType = (InvoiceDiscAmount.IsChecked == true)
+                ? DiscType.Amount
+                : DiscType.Percent;
+
+            RefreshTotalsOnly();
         }
 
         private void InvoiceDiscountOption_Checked(object sender, RoutedEventArgs e)
@@ -299,21 +390,14 @@ namespace POS_System
             if ((sender as FrameworkElement)?.DataContext is not CartItem item) return;
             if (sender is not TextBox tb) return;
 
-            var txt = (tb.Text ?? "").Trim().Replace(",", ".");
+            var val = ParseDecimalSafe(tb.Text);
 
-            if (string.IsNullOrWhiteSpace(txt))
-            {
-                item.DiscountValue = 0;
-                RefreshTotalsOnly();
-                return;
-            }
+            if (val < 0)
+                val = 0;
 
-            if (decimal.TryParse(txt, NumberStyles.Any, CultureInfo.InvariantCulture, out var val))
-            {
-                if (val < 0) val = 0;
-                item.DiscountValue = val;
-                RefreshTotalsOnly();
-            }
+            item.DiscountValue = val;
+
+            RefreshTotalsOnly();
         }
 
         private void LineDiscountType_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -334,36 +418,65 @@ namespace POS_System
         private void Clear_Click(object sender, RoutedEventArgs e)
         {
             _cart.Clear();
+
+            _invoiceDiscountValue = 0m;
+            _invoiceDiscountType = DiscType.Percent;
+            InvoiceDiscountBox.Text = "";
+            InvoiceDiscPercent.IsChecked = true;
+
+            _selectedCustomer = null;
+            _customerDiscountValue = 0m;
+            _customerDiscountType = DiscType.Percent;
+
             RefreshCartAndTotals();
             BarcodeBox.Focus();
         }
 
         private void QtyPlus_Click(object sender, RoutedEventArgs e)
         {
-            if ((sender as FrameworkElement)?.DataContext is CartItem item)
+            if ((sender as FrameworkElement)?.DataContext is not CartItem item)
+                return;
+
+            var branchId = SessionManager.CurrentBranchId;
+            if (branchId == null)
             {
-                item.Qty++;
-                RefreshCartAndTotals();
+                MessageBox.Show("Branch is missing.", "Error");
+                return;
             }
+
+            var stockNow = StockRepo.GetStock(item.VariantId, branchId.Value);
+
+            if (item.Qty + 1 > stockNow)
+            {
+                System.Media.SystemSounds.Beep.Play();
+                MessageBox.Show("Not enough stock.", "Stock");
+                return;
+            }
+
+            item.Qty++;
+            RefreshTotalsOnly();
         }
 
         private void QtyMinus_Click(object sender, RoutedEventArgs e)
         {
-            if ((sender as FrameworkElement)?.DataContext is CartItem item)
-            {
-                item.Qty--;
-                if (item.Qty <= 0) _cart.Remove(item);
-                RefreshCartAndTotals();
-            }
+            if ((sender as FrameworkElement)?.DataContext is not CartItem item)
+                return;
+
+            item.Qty--;
+
+            if (item.Qty <= 0)
+                _cart.Remove(item);
+
+            RefreshCartAndTotals();
         }
 
         private void RemoveItem_Click(object sender, RoutedEventArgs e)
         {
-            if ((sender as FrameworkElement)?.DataContext is CartItem item)
-            {
-                _cart.Remove(item);
-                RefreshCartAndTotals();
-            }
+            if ((sender as FrameworkElement)?.DataContext is not CartItem item)
+                return;
+
+            _cart.Remove(item);
+            RefreshCartAndTotals();
         }
 
         // =========================
@@ -402,7 +515,7 @@ namespace POS_System
         private void ReceivedBox_TextChanged(object? sender, TextChangedEventArgs? e)
         {
             var total = GetTotal();
-            decimal.TryParse(ReceivedBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var received);
+            var received = ParseDecimalSafe(ReceivedBox.Text);
             var change = received - total;
             ChangeText.Text = change.ToString("0.00", CultureInfo.InvariantCulture);
         }
@@ -422,7 +535,7 @@ namespace POS_System
             }
 
             var total = GetTotal();
-            decimal.TryParse(ReceivedBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var received);
+            var received = ParseDecimalSafe(ReceivedBox.Text);
 
             if (_pendingPayKind == PayKind.Cash && received < total)
             {
@@ -504,6 +617,45 @@ namespace POS_System
                 return;
             }
 
+            if (_selectedCustomer != null && _redeemedPoints > 0)
+            {
+                LoyaltyRepo.AddTx(
+                    customerId: _selectedCustomer.Id,
+                    type: "REDEEM",
+                    points: -_redeemedPoints,
+                    refSaleId: saleId,
+                    notes: $"Redeemed {_redeemedPoints:0} points as discount",
+                    userId: u.Id,
+                    branchId: branchId.Value
+                );
+            }
+
+
+            if (_selectedCustomer != null)
+            {
+                var pointsBaseAmount = Math.Max(0, subTotal - CalcInvoiceDiscount(subTotal));
+                var customerDiscountForPoints = CalcCustomerDiscount(pointsBaseAmount);
+                var amountEligibleForPoints = Math.Max(0, pointsBaseAmount - customerDiscountForPoints);
+
+                var earnedPoints = Math.Floor(amountEligibleForPoints / 100m); // كل 100 جنيه = 1 نقطة
+
+                if (earnedPoints > 0)
+                {
+                    LoyaltyRepo.AddTx(
+                        customerId: _selectedCustomer.Id,
+                        type: "EARN",
+                        points: earnedPoints,
+                        refSaleId: saleId,
+                        notes: "Points earned from sale",
+                        userId: u.Id,
+                        branchId: branchId.Value
+                    );
+                }
+
+                ReloadSelectedCustomer();
+            }
+
+
             if (PosSettings.PrintReceipt)
             {
                 try
@@ -534,6 +686,26 @@ namespace POS_System
             RefreshCartAndTotals();
             BarcodeBox.Focus();
         }
+
+        private void LineDiscountTypeCombo_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ComboBox cb) return;
+            if (cb.DataContext is not CartItem item) return;
+
+            foreach (var obj in cb.Items)
+            {
+                if (obj is ComboBoxItem cbi && cbi.Tag is string tag)
+                {
+                    var wanted = item.DiscountType == DiscType.Amount ? "Amount" : "Percent";
+                    if (tag == wanted)
+                    {
+                        cb.SelectedItem = cbi;
+                        break;
+                    }
+                }
+            }
+        }
+
 
         // =========================
         // Print
@@ -644,12 +816,13 @@ namespace POS_System
         }
 
         // =========================
-        // Customers UI + DB
+        // Customers UI
         // =========================
 
         private void UpdateCustomerHeader()
         {
-            if (SelectedCustomerText == null) return;
+            if (SelectedCustomerText == null || CustomerDiscText == null)
+                return;
 
             if (_selectedCustomer == null)
             {
@@ -658,7 +831,9 @@ namespace POS_System
                 return;
             }
 
-            SelectedCustomerText.Text = $"Customer: {_selectedCustomer.Name} ({_selectedCustomer.Phone}) | Points: {_selectedCustomer.LoyaltyPoints:0}";
+            SelectedCustomerText.Text =
+                $"Customer: {_selectedCustomer.Name} ({_selectedCustomer.Phone}) | Points: {_selectedCustomer.LoyaltyPoints:0}";
+
             CustomerDiscText.Text = _customerDiscountType == DiscType.Amount
                 ? $"Customer Discount: {_customerDiscountValue:0.00} EGP"
                 : $"Customer Discount: {_customerDiscountValue:0.##}%";
@@ -677,6 +852,13 @@ namespace POS_System
             _selectedCustomer = null;
             _customerDiscountValue = 0m;
             _customerDiscountType = DiscType.Percent;
+
+            _useLoyaltyPoints = false;
+            _redeemedPoints = 0m;
+
+            if (UsePointsCheckBox != null)
+                UsePointsCheckBox.IsChecked = false;
+
             RefreshCartAndTotals();
         }
 
@@ -685,74 +867,9 @@ namespace POS_System
             RefreshCustomerResults(CustomerSearchBox.Text);
         }
 
-        private static SqliteConnection OpenDb()
-        {
-            var con = new SqliteConnection(Database.ConnStr);
-            con.Open();
-            using var cmd = con.CreateCommand();
-            cmd.CommandText = "PRAGMA foreign_keys = ON;";
-            cmd.ExecuteNonQuery();
-            return con;
-        }
-
-        private List<CustomerRow> SearchCustomersDb(string? q, int limit = 200)
-        {
-            var list = new List<CustomerRow>();
-            q = (q ?? "").Trim();
-
-            using var con = OpenDb();
-            using var cmd = con.CreateCommand();
-
-            if (string.IsNullOrWhiteSpace(q))
-            {
-                cmd.CommandText = $@"
-SELECT Id, Name, Phone, Email, Address, Notes,
-       LoyaltyPoints, SpecialDiscountType, SpecialDiscountValue,
-       IsActive, CreatedAtUtc
-FROM Customers
-WHERE IsActive=1
-ORDER BY Id DESC
-LIMIT {limit};";
-            }
-            else
-            {
-                cmd.CommandText = $@"
-SELECT Id, Name, Phone, Email, Address, Notes,
-       LoyaltyPoints, SpecialDiscountType, SpecialDiscountValue,
-       IsActive, CreatedAtUtc
-FROM Customers
-WHERE IsActive=1
-  AND (Name LIKE @q OR Phone LIKE @q)
-ORDER BY Id DESC
-LIMIT {limit};";
-                cmd.Parameters.AddWithValue("@q", "%" + q + "%");
-            }
-
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read())
-            {
-                list.Add(new CustomerRow
-                {
-                    Id = rd.GetInt64(0),
-                    Name = rd.GetString(1),
-                    Phone = rd.GetString(2),
-                    Email = rd.IsDBNull(3) ? null : rd.GetString(3),
-                    Address = rd.IsDBNull(4) ? null : rd.GetString(4),
-                    Notes = rd.IsDBNull(5) ? null : rd.GetString(5),
-                    LoyaltyPoints = rd.IsDBNull(6) ? 0 : Convert.ToDecimal(rd.GetDouble(6), CultureInfo.InvariantCulture),
-                    SpecialDiscountType = rd.IsDBNull(7) ? "None" : rd.GetString(7),
-                    SpecialDiscountValue = rd.IsDBNull(8) ? 0 : Convert.ToDecimal(rd.GetDouble(8), CultureInfo.InvariantCulture),
-                    IsActive = rd.GetInt32(9) == 1,
-                    CreatedAtUtc = rd.IsDBNull(10) ? "" : rd.GetString(10),
-                });
-            }
-
-            return list;
-        }
-
         private void RefreshCustomerResults(string q)
         {
-            _customerResults = SearchCustomersDb(q, limit: 200);
+            _customerResults = CustomerRepo.Search(q, limit: 200, activeOnly: true);
             CustomersList.ItemsSource = null;
             CustomersList.ItemsSource = _customerResults;
         }
@@ -770,6 +887,7 @@ LIMIT {limit};";
                 System.Media.SystemSounds.Beep.Play();
                 return;
             }
+
             SelectCustomer(c);
         }
 
@@ -782,17 +900,76 @@ LIMIT {limit};";
             }
 
             _selectedCustomer = c;
-
-            _customerDiscountValue = c.SpecialDiscountValue;
-            _customerDiscountType = (string.Equals(c.SpecialDiscountType, "Amount", StringComparison.OrdinalIgnoreCase))
-                ? DiscType.Amount
-                : DiscType.Percent;
+            ApplySelectedCustomerDiscount();
 
             HideCustomerOverlay();
             RefreshCartAndTotals();
         }
 
-        private void CustomerOverlayCancel_Click(object sender, RoutedEventArgs e) => HideCustomerOverlay();
+        private void ApplySelectedCustomerDiscount()
+        {
+            if (_selectedCustomer == null)
+            {
+                _customerDiscountValue = 0m;
+                _customerDiscountType = DiscType.Percent;
+                return;
+            }
+
+            _customerDiscountValue = _selectedCustomer.SpecialDiscountValue;
+            _customerDiscountType =
+                string.Equals(_selectedCustomer.SpecialDiscountType, "Amount", StringComparison.OrdinalIgnoreCase)
+                    ? DiscType.Amount
+                    : DiscType.Percent;
+        }
+
+        private decimal CalcLoyaltyDiscount(decimal amountAfterOtherDiscounts)
+        {
+            _redeemedPoints = 0m;
+
+            if (!_useLoyaltyPoints || _selectedCustomer == null || amountAfterOtherDiscounts <= 0)
+                return 0m;
+
+            var customerPoints = Math.Max(0, _selectedCustomer.LoyaltyPoints);
+            if (customerPoints <= 0 || _loyaltyPointValue <= 0)
+                return 0m;
+
+            var maxPointsUsable = Math.Floor(amountAfterOtherDiscounts / _loyaltyPointValue);
+            _redeemedPoints = Math.Min(customerPoints, maxPointsUsable);
+
+            return _redeemedPoints * _loyaltyPointValue;
+        }
+
+        private void UsePointsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _useLoyaltyPoints = UsePointsCheckBox.IsChecked == true;
+            RefreshCartAndTotals();
+        }
+
+        private void ReloadSelectedCustomer()
+        {
+            if (_selectedCustomer == null)
+                return;
+
+            var refreshed = CustomerRepo.GetById(_selectedCustomer.Id);
+            if (refreshed == null || !refreshed.IsActive)
+            {
+                _selectedCustomer = null;
+                _customerDiscountValue = 0m;
+                _customerDiscountType = DiscType.Percent;
+            }
+            else
+            {
+                _selectedCustomer = refreshed;
+                ApplySelectedCustomerDiscount();
+            }
+
+            RefreshCartAndTotals();
+        }
+
+        private void CustomerOverlayCancel_Click(object sender, RoutedEventArgs e)
+        {
+            HideCustomerOverlay();
+        }
 
         private void ShowCustomerOverlay()
         {
@@ -804,6 +981,79 @@ LIMIT {limit};";
         {
             if (CustomerOverlay != null)
                 CustomerOverlay.Visibility = Visibility.Collapsed;
+        }
+        private void OpenAddCustomerOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            NewCustomerNameBox.Text = "";
+            NewCustomerPhoneBox.Text = "";
+            AddCustomerOverlay.Visibility = Visibility.Visible;
+            NewCustomerNameBox.Focus();
+        }
+
+        private void CancelQuickCustomer_Click(object sender, RoutedEventArgs e)
+        {
+            AddCustomerOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void SaveQuickCustomer_Click(object sender, RoutedEventArgs e)
+        {
+            var name = (NewCustomerNameBox.Text ?? "").Trim();
+            var phone = (NewCustomerPhoneBox.Text ?? "").Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                MessageBox.Show("Customer name is required.", "Validation");
+                NewCustomerNameBox.Focus();
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                MessageBox.Show("Phone is required.", "Validation");
+                NewCustomerPhoneBox.Focus();
+                return;
+            }
+
+            try
+            {
+                var existing = CustomerRepo.Search(phone, limit: 20, activeOnly: false)
+                    .FirstOrDefault(x => string.Equals((x.Phone ?? "").Trim(), phone, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    MessageBox.Show("This phone number is already registered.", "Duplicate");
+                    return;
+                }
+
+                var newId = CustomerRepo.Add(
+                    name: name,
+                    phone: phone,
+                    email: null,
+                    address: null,
+                    notes: null,
+                    specialDiscountType: "None",
+                    specialDiscountValue: 0m,
+                    isActive: true
+                );
+
+                var created = CustomerRepo.GetById(newId);
+                if (created == null)
+                {
+                    MessageBox.Show("Customer added, but failed to load it again.", "Warning");
+                    AddCustomerOverlay.Visibility = Visibility.Collapsed;
+                    RefreshCustomerResults("");
+                    return;
+                }
+
+                AddCustomerOverlay.Visibility = Visibility.Collapsed;
+
+                RefreshCustomerResults(phone);
+                SelectCustomer(created);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to add customer:\n" + ex.Message, "Error");
+            }
         }
     }
 }

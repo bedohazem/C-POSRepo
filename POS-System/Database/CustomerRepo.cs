@@ -1,151 +1,166 @@
 ﻿using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
-using POS_System.Audit;
+using System.Globalization;
 
 namespace POS_System
 {
-    public class LoyaltyTxRow
-    {
-        public long Id { get; set; }
-        public long CustomerId { get; set; }
-        public string Type { get; set; } = "EARN";
-        public decimal Points { get; set; }
-        public long? RefSaleId { get; set; }
-        public string? Notes { get; set; }
-        public string AtUtc { get; set; } = "";
-    }
-
-    // ✅ renamed (was CustomerSaleRow)
-    public class CustomerSaleMiniRow
-    {
-        public long SaleId { get; set; }
-        public string AtUtc { get; set; } = "";
-        public string PaymentMethod { get; set; } = "";
-        public decimal GrandTotal { get; set; }
-        public string Type { get; set; } = "Sale";
-    }
-
-    public static class LoyaltyRepo
+    public static class CustomerRepo
     {
         private static SqliteConnection Open()
         {
             var con = new SqliteConnection(Database.ConnStr);
             con.Open();
+
             using var cmd = con.CreateCommand();
             cmd.CommandText = "PRAGMA foreign_keys = ON;";
             cmd.ExecuteNonQuery();
+
             return con;
         }
 
-        public static long AddTx(long customerId, string type, decimal points, long? refSaleId, string? notes, int? userId, int? branchId)
+        public static List<CustomerRow> Search(string? q, int limit = 200, bool activeOnly = true)
         {
+            var list = new List<CustomerRow>();
+            q = (q ?? "").Trim();
 
-                    using var con = Open();
-                    using var tx = con.BeginTransaction();
-
-                    long id;
-                    using (var cmd = con.CreateCommand())
-                    {
-                        cmd.Transaction = tx;
-                        cmd.CommandText = @"
-INSERT INTO LoyaltyTransactions(CustomerId, Type, Points, RefSaleId, Notes, AtUtc, UserId, BranchId)
-VALUES (@c,@t,@p,@r,@n,@at,@u,@b);
-SELECT last_insert_rowid();";
-                        cmd.Parameters.AddWithValue("@c", customerId);
-                        cmd.Parameters.AddWithValue("@t", type);
-                        cmd.Parameters.AddWithValue("@p", (double)points);
-                        cmd.Parameters.AddWithValue("@r", (object?)refSaleId ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@n", (object?)notes ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@at", DateTime.UtcNow.ToString("o"));
-                        cmd.Parameters.AddWithValue("@u", (object?)userId ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@b", (object?)branchId ?? DBNull.Value);
-
-                        id = (long)cmd.ExecuteScalar();
-                    }
-
-                    // Recalc balance
-                    decimal balance;
-                    using (var cmd = con.CreateCommand())
-                    {
-                        cmd.Transaction = tx;
-                        cmd.CommandText = "SELECT IFNULL(SUM(Points), 0) FROM LoyaltyTransactions WHERE CustomerId=@c;";
-                        cmd.Parameters.AddWithValue("@c", customerId);
-                        balance = Convert.ToDecimal(cmd.ExecuteScalar());
-                    }
-
-                    using (var cmd = con.CreateCommand())
-                    {
-                        cmd.Transaction = tx;
-                        cmd.CommandText = "UPDATE Customers SET LoyaltyPoints=@p WHERE Id=@id;";
-                        cmd.Parameters.AddWithValue("@id", customerId);
-                        cmd.Parameters.AddWithValue("@p", (double)balance);
-                        cmd.ExecuteNonQuery();
-                    }
-
-                    tx.Commit();
-            AuditLog.Write("LOYALTY_TX_ADD", $"customerId={customerId}, type={type}, points={points}, refSaleId={(refSaleId?.ToString() ?? "null")}");
-            
-            return id;
-                
-        }
-
-        public static List<LoyaltyTxRow> GetTransactions(long customerId, int limit = 200)
-        {
-            var list = new List<LoyaltyTxRow>();
             using var con = Open();
             using var cmd = con.CreateCommand();
-            cmd.CommandText = $@"
-SELECT Id, CustomerId, Type, Points, RefSaleId, Notes, AtUtc
-FROM LoyaltyTransactions
-WHERE CustomerId=@c
+
+            var safeLimit = Math.Max(1, limit);
+            var where = activeOnly ? "WHERE IsActive=1" : "WHERE 1=1";
+
+            if (string.IsNullOrWhiteSpace(q))
+            {
+                cmd.CommandText = $@"
+SELECT Id, Name, Phone, Email, Address, Notes,
+       LoyaltyPoints, SpecialDiscountType, SpecialDiscountValue,
+       IsActive, CreatedAtUtc
+FROM Customers
+{where}
 ORDER BY Id DESC
-LIMIT {limit};";
-            cmd.Parameters.AddWithValue("@c", customerId);
+LIMIT {safeLimit};";
+            }
+            else
+            {
+                cmd.CommandText = $@"
+SELECT Id, Name, Phone, Email, Address, Notes,
+       LoyaltyPoints, SpecialDiscountType, SpecialDiscountValue,
+       IsActive, CreatedAtUtc
+FROM Customers
+{where}
+  AND (Name LIKE @q OR Phone LIKE @q)
+ORDER BY Id DESC
+LIMIT {safeLimit};";
+
+                cmd.Parameters.AddWithValue("@q", "%" + q + "%");
+            }
 
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
             {
-                list.Add(new LoyaltyTxRow
+                list.Add(new CustomerRow
                 {
                     Id = rd.GetInt64(0),
-                    CustomerId = rd.GetInt64(1),
-                    Type = rd.GetString(2),
-                    Points = Convert.ToDecimal(rd.GetDouble(3)),
-                    RefSaleId = rd.IsDBNull(4) ? null : rd.GetInt64(4),
+                    Name = rd.GetString(1),
+                    Phone = rd.GetString(2),
+                    Email = rd.IsDBNull(3) ? null : rd.GetString(3),
+                    Address = rd.IsDBNull(4) ? null : rd.GetString(4),
                     Notes = rd.IsDBNull(5) ? null : rd.GetString(5),
-                    AtUtc = rd.GetString(6)
+                    LoyaltyPoints = ReadDecimal(rd, 6),
+                    SpecialDiscountType = rd.IsDBNull(7) ? "None" : rd.GetString(7),
+                    SpecialDiscountValue = ReadDecimal(rd, 8),
+                    IsActive = rd.GetInt32(9) == 1,
+                    CreatedAtUtc = rd.IsDBNull(10) ? "" : rd.GetString(10),
                 });
             }
+
             return list;
         }
 
-        public static List<CustomerSaleMiniRow> GetCustomerSales(long customerId, int limit = 200)
+        public static long Add(
+            string name,
+            string phone,
+            string? email,
+            string? address,
+            string? notes,
+            string specialDiscountType,
+            decimal specialDiscountValue,
+            bool isActive = true)
         {
-            var list = new List<CustomerSaleMiniRow>();
             using var con = Open();
             using var cmd = con.CreateCommand();
-            cmd.CommandText = $@"
-SELECT Id, AtUtc, PaymentMethod, GrandTotal, Type
-FROM Sales
-WHERE CustomerId=@c
-ORDER BY Id DESC
-LIMIT {limit};";
-            cmd.Parameters.AddWithValue("@c", customerId);
+
+            cmd.CommandText = @"
+INSERT INTO Customers
+(Name, Phone, Email, Address, Notes, LoyaltyPoints, SpecialDiscountType, SpecialDiscountValue, IsActive, CreatedAtUtc)
+VALUES
+(@name, @phone, @email, @address, @notes, @points, @discType, @discValue, @active, @createdAt);
+SELECT last_insert_rowid();";
+
+            cmd.Parameters.AddWithValue("@name", name);
+            cmd.Parameters.AddWithValue("@phone", phone);
+            cmd.Parameters.AddWithValue("@email", (object?)email ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@address", (object?)address ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@notes", (object?)notes ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@points", 0d);
+            cmd.Parameters.AddWithValue("@discType", string.IsNullOrWhiteSpace(specialDiscountType) ? "None" : specialDiscountType);
+            cmd.Parameters.AddWithValue("@discValue", (double)specialDiscountValue);
+            cmd.Parameters.AddWithValue("@active", isActive ? 1 : 0);
+            cmd.Parameters.AddWithValue("@createdAt", DateTime.UtcNow.ToString("o"));
+
+            return (long)cmd.ExecuteScalar();
+        }
+
+        public static CustomerRow? GetById(long id)
+        {
+            using var con = Open();
+            using var cmd = con.CreateCommand();
+            cmd.CommandText = @"
+SELECT Id, Name, Phone, Email, Address, Notes,
+       LoyaltyPoints, SpecialDiscountType, SpecialDiscountValue,
+       IsActive, CreatedAtUtc
+FROM Customers
+WHERE Id=@id
+LIMIT 1;";
+            cmd.Parameters.AddWithValue("@id", id);
 
             using var rd = cmd.ExecuteReader();
-            while (rd.Read())
+            if (!rd.Read()) return null;
+
+            return new CustomerRow
             {
-                list.Add(new CustomerSaleMiniRow
-                {
-                    SaleId = rd.GetInt64(0),
-                    AtUtc = rd.GetString(1),
-                    PaymentMethod = rd.GetString(2),
-                    GrandTotal = Convert.ToDecimal(rd.GetDouble(3)),
-                    Type = rd.GetString(4)
-                });
-            }
-            return list;
+                Id = rd.GetInt64(0),
+                Name = rd.GetString(1),
+                Phone = rd.GetString(2),
+                Email = rd.IsDBNull(3) ? null : rd.GetString(3),
+                Address = rd.IsDBNull(4) ? null : rd.GetString(4),
+                Notes = rd.IsDBNull(5) ? null : rd.GetString(5),
+                LoyaltyPoints = ReadDecimal(rd, 6),
+                SpecialDiscountType = rd.IsDBNull(7) ? "None" : rd.GetString(7),
+                SpecialDiscountValue = ReadDecimal(rd, 8),
+                IsActive = rd.GetInt32(9) == 1,
+                CreatedAtUtc = rd.IsDBNull(10) ? "" : rd.GetString(10),
+            };
+        }
+
+        private static decimal ReadDecimal(SqliteDataReader rd, int index)
+        {
+            if (rd.IsDBNull(index))
+                return 0m;
+
+            var value = rd.GetValue(index);
+
+            return value switch
+            {
+                decimal d => d,
+                double db => Convert.ToDecimal(db, CultureInfo.InvariantCulture),
+                float f => Convert.ToDecimal(f, CultureInfo.InvariantCulture),
+                long l => l,
+                int i => i,
+                string s when decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed) => parsed,
+                _ => Convert.ToDecimal(value, CultureInfo.InvariantCulture)
+            };
         }
     }
 }
