@@ -371,6 +371,58 @@ WHERE Id=@id;";
             cmd.ExecuteNonQuery();
             POS_System.Audit.AuditLog.Write("VARIANT_UPDATE", $"id={id}, barcode={barcode}");
         }
+        public static List<VariantRow> GetAllVariants(int limit = 200, bool includeInactive = true)
+        {
+            var list = new List<VariantRow>();
+
+            using var con = Open();
+            using var cmd = con.CreateCommand();
+
+            var activeFilter = includeInactive ? "" : "AND v.IsActive=1 AND p.IsActive=1";
+
+            cmd.CommandText = $@"
+SELECT
+  v.Id, v.ProductId,
+  p.Name AS ProductName,
+  IFNULL(p.LowStockThreshold, 5) AS Threshold,
+  v.Barcode, v.Size, v.Color, v.SellPrice, v.CostPrice, v.IsActive,
+  IFNULL((
+    SELECT SUM(sm.Qty)
+    FROM StockMovements sm
+    WHERE sm.VariantId = v.Id
+      AND (@bid IS NULL OR sm.BranchId = @bid)
+  ), 0) AS Stock
+FROM ProductVariants v
+JOIN Products p ON p.Id = v.ProductId
+WHERE 1=1
+{activeFilter}
+ORDER BY p.Name, v.Barcode
+LIMIT @lim;";
+
+            cmd.Parameters.AddWithValue("@lim", limit);
+            cmd.Parameters.AddWithValue("@bid", (object?)POS_System.Security.SessionManager.CurrentBranchId ?? DBNull.Value);
+
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                list.Add(new VariantRow
+                {
+                    Id = rd.GetInt64(0),
+                    ProductId = rd.GetInt64(1),
+                    ProductName = rd.GetString(2),
+                    LowStockThreshold = rd.GetInt32(3),
+                    Barcode = rd.GetString(4),
+                    Size = rd.GetString(5),
+                    Color = rd.GetString(6),
+                    SellPrice = Convert.ToDecimal(rd.GetDouble(7)),
+                    CostPrice = Convert.ToDecimal(rd.GetDouble(8)),
+                    IsActive = rd.GetInt32(9) == 1,
+                    Stock = Convert.ToDecimal(rd.GetDouble(10))
+                });
+            }
+
+            return list;
+        }
         public class InventoryRow
         {
             public long VariantId { get; set; }
