@@ -203,66 +203,74 @@ ORDER BY v.Id DESC;";
 
             return list;
         }
-        public static List<VariantRow> SearchVariantsByBarcodeOrName(string query, int limit = 50, bool includeInactive = true)
+        public static List<VariantRow> SearchVariantsByBarcodeOrName(string q, int limit = 200, bool includeInactive = false)
         {
-            var list = new List<VariantRow>();
-            if (string.IsNullOrWhiteSpace(query)) return list;
-
             using var con = Open();
             using var cmd = con.CreateCommand();
 
-            var activeFilter = includeInactive ? "" : "AND v.IsActive=1 AND p.IsActive=1";
+            var hasQuery = !string.IsNullOrWhiteSpace(q);
+            var term = $"%{q?.Trim()}%";
 
             cmd.CommandText = $@"
-SELECT
-  v.Id, v.ProductId,
-  p.Name AS ProductName,
-  IFNULL(p.LowStockThreshold, 5) AS Threshold,
-  v.Barcode, v.Size, v.Color, v.SellPrice, v.CostPrice, v.IsActive,
-  IFNULL((
-    SELECT SUM(sm.Qty)
-    FROM StockMovements sm
-    WHERE sm.VariantId = v.Id
-      AND (@bid IS NULL OR sm.BranchId = @bid)
-  ), 0) AS Stock
+SELECT 
+    v.Id,
+    v.ProductId,
+    p.Name AS ProductName,
+    p.LowStockThreshold,
+    v.Barcode,
+    v.Size,
+    v.Color,
+    v.SellPrice,
+    v.CostPrice,
+    v.IsActive,
+    COALESCE((
+        SELECT SUM(sm.Qty)
+        FROM StockMovements sm
+        WHERE sm.VariantId = v.Id
+    ), 0) AS Stock
 FROM ProductVariants v
-JOIN Products p ON p.Id = v.ProductId
-WHERE 1=1
-{activeFilter}
+INNER JOIN Products p ON p.Id = v.ProductId
+WHERE ({(includeInactive ? "1=1" : "v.IsActive = 1 AND p.IsActive = 1")})
 AND (
-  v.Barcode = @qExact
-  OR v.Barcode LIKE @qLike
-  OR p.Name LIKE @qLike
+    @hasQuery = 0
+    OR v.Barcode LIKE @term
+    OR p.Name LIKE @term
+    OR v.Size LIKE @term
+    OR v.Color LIKE @term
 )
 ORDER BY
-  CASE WHEN v.Barcode = @qExact THEN 0 ELSE 1 END,
-  p.Name
-LIMIT @lim;";
+    CASE WHEN @hasQuery = 1 AND v.Barcode = @q THEN 0 ELSE 1 END,
+    p.Name,
+    v.Size,
+    v.Color
+LIMIT @limit;";
 
-            var q = query.Trim();
-            cmd.Parameters.AddWithValue("@qExact", q);
-            cmd.Parameters.AddWithValue("@qLike", "%" + q + "%");
-            cmd.Parameters.AddWithValue("@lim", limit);
-            cmd.Parameters.AddWithValue("@bid", (object?)POS_System.Security.SessionManager.CurrentBranchId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@hasQuery", hasQuery ? 1 : 0);
+            cmd.Parameters.AddWithValue("@q", q?.Trim() ?? "");
+            cmd.Parameters.AddWithValue("@term", term);
+            cmd.Parameters.AddWithValue("@limit", limit);
 
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read())
+            var list = new List<VariantRow>();
+            using var r = cmd.ExecuteReader();
+
+            while (r.Read())
             {
                 list.Add(new VariantRow
                 {
-                    Id = rd.GetInt64(0),
-                    ProductId = rd.GetInt64(1),
-                    ProductName = rd.GetString(2),
-                    LowStockThreshold = rd.GetInt32(3),
-                    Barcode = rd.GetString(4),
-                    Size = rd.GetString(5),
-                    Color = rd.GetString(6),
-                    SellPrice = Convert.ToDecimal(rd.GetDouble(7)),
-                    CostPrice = Convert.ToDecimal(rd.GetDouble(8)),
-                    IsActive = rd.GetInt32(9) == 1,
-                    Stock = Convert.ToDecimal(rd.GetDouble(10))
+                    Id = r.GetInt64(0),
+                    ProductId = r.GetInt64(1),
+                    ProductName = r.GetString(2),
+                    LowStockThreshold = r.GetInt32(3),
+                    Barcode = r.IsDBNull(4) ? "" : r.GetString(4),
+                    Size = r.IsDBNull(5) ? "" : r.GetString(5),
+                    Color = r.IsDBNull(6) ? "" : r.GetString(6),
+                    SellPrice = Convert.ToDecimal(r.GetDouble(7)),
+                    CostPrice = Convert.ToDecimal(r.GetDouble(8)),
+                    IsActive = r.GetBoolean(9),
+                    Stock = Convert.ToDecimal(r.GetDouble(10))
                 });
             }
+
             return list;
         }
 

@@ -1,5 +1,6 @@
 ﻿using POS_System.Security;
 using System;
+using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -26,7 +27,9 @@ namespace POS_System
         private decimal _redeemedPoints = 0m;
         private decimal _loyaltyPointValue = 5m; // كل نقطة = 5 جنيه
         private bool _isUpdatingCustomerPicker = false;
-        private bool _isUpdatingProductPicker = false;
+        private List<VariantRow> _allProductPickerItems = new();
+        private bool _isUpdatingProductPickerItems = false;
+
 
 
         // =========================
@@ -46,6 +49,7 @@ namespace POS_System
             public string Color { get; set; } = "";
             public decimal Price { get; set; }
             public bool IsDraft { get; set; }
+
 
             public int Qty
             {
@@ -130,31 +134,19 @@ namespace POS_System
                 OnPropertyChanged(nameof(LineTotalAfterDiscount));
             }
         }
-
-        private class InvoiceSession
-        {
-            public string Name { get; set; } = "";
-            public List<CartItem> Cart { get; set; } = new();
-        }
-
         private class SalesInvoiceTab
         {
             public int Number { get; set; }
             public string Title => $"فاتورة {Number}";
             public DateTime Date { get; set; } = DateTime.Now;
-
-            public List<CartItem> Cart { get; set; } = new();
-
+            public ObservableCollection<CartItem> Cart { get; } = new();
             public CustomerRow? SelectedCustomer { get; set; }
-            public decimal CustomerDiscountValue { get; set; } = 0m;
+            public decimal CustomerDiscountValue { get; set; }
             public DiscType CustomerDiscountType { get; set; } = DiscType.Percent;
-
-            public decimal InvoiceDiscountValue { get; set; } = 0m;
+            public decimal InvoiceDiscountValue { get; set; }
             public DiscType InvoiceDiscountType { get; set; } = DiscType.Percent;
-
-            public bool UseLoyaltyPoints { get; set; } = false;
-            public decimal RedeemedPoints { get; set; } = 0m;
-
+            public bool UseLoyaltyPoints { get; set; }
+            public decimal RedeemedPoints { get; set; }
             public string BarcodeDraft { get; set; } = "";
         }
 
@@ -176,21 +168,37 @@ namespace POS_System
                 : 0m;
         }
 
+        private void FocusBarcodeBox()
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
 
+
+                BarcodeBox.Focus();
+                Keyboard.Focus(BarcodeBox);
+                BarcodeBox.CaretIndex = BarcodeBox.Text?.Length ?? 0;
+                BarcodeBox.Select(BarcodeBox.CaretIndex, 0);
+            }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+
+
+        private void CaretIndexToEnd()
+        {
+            if (BarcodeBox?.Text != null)
+                BarcodeBox.CaretIndex = BarcodeBox.Text.Length;
+        }
         private T? FindControl<T>(string name) where T : class
             => FindName(name) as T;
 
         // =========================
         // State
         // =========================
-
-        private List<VariantRow> _searchResults = new();
-        private readonly List<InvoiceSession> _invoices = new();
-        private InvoiceSession? _currentInvoice = null;
-
         private readonly List<SalesInvoiceTab> _openInvoices = new();
         private SalesInvoiceTab? _activeInvoice;
         private int _nextInvoiceNumber = 1;
+        private ObservableCollection<CartItem> CurrentCart
+             => _activeInvoice?.Cart ?? _emptyCart;
+        private readonly ObservableCollection<CartItem> _emptyCart = new();
 
         private PayKind _pendingPayKind = PayKind.Cash;
 
@@ -215,7 +223,6 @@ namespace POS_System
             _searchTimer.Tick += (_, _) =>
             {
                 _searchTimer.Stop();
-                RefreshSearchResults(BarcodeBox.Text);
                 LoadProductPicker(BarcodeBox.Text);
             };
 
@@ -229,16 +236,7 @@ namespace POS_System
                 UpdateCustomerHeader();
 
                 LoadCustomerPicker();
-
-                var productCombo = FindControl<ComboBox>("ProductPickerCombo");
-                if (productCombo != null)
-                {
-                    productCombo.ItemsSource = null;
-                    productCombo.IsDropDownOpen = false;
-                    productCombo.SelectedItem = null;
-                    productCombo.Text = "";
-                }
-
+                LoadProductPicker("");
 
                 HideCustomerOverlay();
 
@@ -248,28 +246,23 @@ namespace POS_System
                 if (PaymentOverlay != null)
                     PaymentOverlay.Visibility = Visibility.Collapsed;
 
-                BarcodeBox.Focus();
-                Keyboard.Focus(BarcodeBox);
 
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    BarcodeBox.Focus();
-                    Keyboard.Focus(BarcodeBox);
-                    BarcodeBox.SelectAll();
-                }), DispatcherPriority.Background);
+                FocusBarcodeBox();
+
             };
         }
 
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
+            // مهم جدًا: نخلي الفوكس يروح للباركود
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (BarcodeBox != null)
-                {
-                    BarcodeBox.Focus();
-                    Keyboard.Focus(BarcodeBox);
-                }
+                BarcodeBox.Focus();
+                Keyboard.Focus(BarcodeBox);
             }), System.Windows.Threading.DispatcherPriority.Background);
+
+            // بعد ما كل حاجة تخلص
+            _isPageReady = true;
         }
         private void FocusBarcode()
         {
@@ -287,72 +280,34 @@ namespace POS_System
 
         private void CreateNewInvoice()
         {
-            SaveUiStateToActiveInvoice();
-
-            var tab = new SalesInvoiceTab
+            var invoice = new SalesInvoiceTab
             {
-                Number = _openInvoices.Count + 1,
+                Number = _nextInvoiceNumber++,
                 Date = DateTime.Now
             };
 
-            _openInvoices.Add(tab);
-
-            var invoice = new InvoiceSession
-            {
-                Name = tab.Title,
-                Cart = new List<CartItem>()
-            };
-
-            _invoices.Add(invoice);
-            _currentInvoice = invoice;
-            CartList.ItemsSource = _currentInvoice.Cart;
-
-            
-
-            _activeInvoice = tab;
-
-            _selectedCustomer = null;
-            _customerDiscountValue = 0m;
-            _customerDiscountType = DiscType.Percent;
-            _invoiceDiscountValue = 0m;
-            _invoiceDiscountType = DiscType.Percent;
-            _useLoyaltyPoints = false;
-            _redeemedPoints = 0m;
-
-            if (InvoiceDiscountBox != null) InvoiceDiscountBox.Text = "";
-            if (InvoiceDiscPercent != null) InvoiceDiscPercent.IsChecked = true;
-            if (UsePointsCheckBox != null) UsePointsCheckBox.IsChecked = false;
-            if (BarcodeBox != null) BarcodeBox.Text = "";
-
-            FocusBarcode();
-            SetCustomerPickerSelection(null);
-            RenumberOpenInvoices();
-            SyncInvoiceSessionNames();
+            _openInvoices.Add(invoice);
             RefreshInvoiceTabs();
-            RefreshCartAndTotals();
+            SwitchToInvoice(invoice);
         }
 
         private void SwitchToInvoice(SalesInvoiceTab invoice)
         {
-            SaveUiStateToActiveInvoice();
-            FocusBarcode();
+            PersistActiveInvoiceUiState();
+
             _activeInvoice = invoice;
             LoadActiveInvoiceToUi();
+
+            CartList.ItemsSource = CurrentCart;
+
             RefreshInvoiceTabs();
             RefreshCartAndTotals();
-
-            BarcodeBox.Focus();
-            Keyboard.Focus(BarcodeBox);
+            FocusBarcodeBox();
         }
 
-        private void SaveUiStateToActiveInvoice()
+        private void PersistActiveInvoiceUiState()
         {
             if (_activeInvoice == null) return;
-
-            _activeInvoice.Cart = _currentInvoice.Cart
-                 .Where(x => !x.IsDraft)
-                 .Select(x => x.Clone())
-                 .ToList();
 
             _activeInvoice.SelectedCustomer = _selectedCustomer;
             _activeInvoice.CustomerDiscountValue = _customerDiscountValue;
@@ -365,15 +320,11 @@ namespace POS_System
             _activeInvoice.RedeemedPoints = _redeemedPoints;
 
             _activeInvoice.BarcodeDraft = BarcodeBox?.Text ?? "";
-            //_activeInvoice.Date = GetInvoiceDateFromUi();
         }
 
         private void LoadActiveInvoiceToUi()
         {
             if (_activeInvoice == null) return;
-
-            _currentInvoice.Cart.Clear();
-            _currentInvoice.Cart.AddRange(_activeInvoice.Cart.Select(x => x.Clone()));
 
             _selectedCustomer = _activeInvoice.SelectedCustomer;
             _customerDiscountValue = _activeInvoice.CustomerDiscountValue;
@@ -398,62 +349,36 @@ namespace POS_System
             if (BarcodeBox != null)
                 BarcodeBox.Text = _activeInvoice.BarcodeDraft;
 
-            //SetInvoiceDateUi(_activeInvoice.Date);
             SetCustomerPickerSelection(_selectedCustomer);
-           
             UpdateCustomerHeader();
-        }
-
-        private void SyncActiveInvoiceCart()
-        {
-            if (_activeInvoice == null) return;
-            _activeInvoice.Cart = _currentInvoice.Cart.Select(x => x.Clone()).ToList();
         }
 
         private void RefreshInvoiceTabs()
         {
-            var panel = FindControl<StackPanel>("InvoiceTabsPanel");
-            if (panel == null) return;
+            if (InvoiceTabsPanel == null) return;
 
-            panel.Children.Clear();
+            InvoiceTabsPanel.Children.Clear();
 
             foreach (var invoice in _openInvoices)
             {
-                var wrap = new Border
+                var wrap = new Grid
                 {
-                    Margin = new Thickness(0, 0, 8, 0),
-                    CornerRadius = new CornerRadius(10),
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151")),
-                    Background = invoice == _activeInvoice
-                        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4F46E5"))
-                        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#111827"))
+                    Margin = new Thickness(0, 0, 8, 0)
                 };
 
-                var grid = new Grid
-                {
-                    MinWidth = 120,
-                    Height = 36
-                };
-
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                wrap.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                wrap.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 var tabBtn = new Button
                 {
                     Content = invoice.Title,
                     Tag = invoice,
-                    Background = Brushes.Transparent,
-                    BorderBrush = Brushes.Transparent,
-                    BorderThickness = new Thickness(0),
-                    Foreground = Brushes.White,
-                    Padding = new Thickness(12, 0, 8, 0),
-                    HorizontalContentAlignment = HorizontalAlignment.Center,
-                    VerticalContentAlignment = VerticalAlignment.Center,
-                    Cursor = Cursors.Hand,
-                    FocusVisualStyle = null,
-                    OverridesDefaultStyle = true,
-                    Template = BuildTabButtonTemplate(invoice == _activeInvoice)
+                    MinWidth = 110,
+                    Height = 36,
+                    Padding = new Thickness(14, 0, 14, 0),
+                    Style = TryFindResource(invoice == _activeInvoice
+                        ? "PrimaryButtonStyle"
+                        : "DarkButtonStyle") as Style
                 };
                 tabBtn.Click += InvoiceTab_Click;
                 Grid.SetColumn(tabBtn, 0);
@@ -462,169 +387,57 @@ namespace POS_System
                 {
                     Content = "×",
                     Tag = invoice,
-                    Width = 24,
-                    Height = 24,
-                    Margin = new Thickness(0, 0, 6, 0),
-                    Padding = new Thickness(0),
-                    Background = Brushes.Transparent,
-                    BorderBrush = Brushes.Transparent,
-                    BorderThickness = new Thickness(0),
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D1D5DB")),
-                    FontSize = 12,
-                    FontWeight = FontWeights.Bold,
-                    Cursor = Cursors.Hand,
-                    ToolTip = "إغلاق الفاتورة",
-                    FocusVisualStyle = null,
-                    OverridesDefaultStyle = true,
-                    Template = BuildCloseTabButtonTemplate(),
-                    Visibility = _openInvoices.Count > 1 ? Visibility.Visible : Visibility.Collapsed
+                    Width = 32,
+                    Height = 36,
+                    Margin = new Thickness(6, 0, 0, 0),
+                    Style = TryFindResource("DangerButtonStyle") as Style,
+                    ToolTip = "Close invoice"
                 };
-                closeBtn.Click += CloseInvoice_Click;
+                closeBtn.Click += CloseInvoiceTab_Click;
                 Grid.SetColumn(closeBtn, 1);
 
-                grid.Children.Add(tabBtn);
-                grid.Children.Add(closeBtn);
+                wrap.Children.Add(tabBtn);
+                wrap.Children.Add(closeBtn);
 
-                wrap.Child = grid;
-                panel.Children.Add(wrap);
+                InvoiceTabsPanel.Children.Add(wrap);
             }
         }
-        private ControlTemplate BuildTabButtonTemplate(bool isActive)
+        private void CloseInvoiceTab_Click(object sender, RoutedEventArgs e)
         {
-            var template = new ControlTemplate(typeof(Button));
-
-            var border = new FrameworkElementFactory(typeof(Border));
-            border.SetValue(Border.BackgroundProperty,
-                new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                    isActive ? "#4F46E5" : "#111827")));
-
-            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(10));
-
-            var content = new FrameworkElementFactory(typeof(ContentPresenter));
-            content.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            content.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
-
-            border.AppendChild(content);
-            template.VisualTree = border;
-
-            // 👇 hover خفيف جدًا بدل الأزرق المقرف
-            var hover = new Trigger
-            {
-                Property = Button.IsMouseOverProperty,
-                Value = true
-            };
-
-            hover.Setters.Add(new Setter(Button.BackgroundProperty,
-                new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                    isActive ? "#5B52F6" : "#1F2937"))));
-
-            template.Triggers.Add(hover);
-
-            return template;
-        }
-
-        private ControlTemplate BuildCloseTabButtonTemplate()
-        {
-            var template = new ControlTemplate(typeof(Button));
-
-            var border = new FrameworkElementFactory(typeof(Border));
-            border.SetValue(Border.BackgroundProperty, Brushes.Transparent);
-            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
-
-            var content = new FrameworkElementFactory(typeof(ContentPresenter));
-            content.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
-            content.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
-
-            border.AppendChild(content);
-            template.VisualTree = border;
-
-            var hoverTrigger = new Trigger
-            {
-                Property = Button.IsMouseOverProperty,
-                Value = true
-            };
-            hoverTrigger.Setters.Add(new Setter(Button.BackgroundProperty,
-                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))));
-            hoverTrigger.Setters.Add(new Setter(Button.ForegroundProperty, Brushes.White));
-
-            var pressedTrigger = new Trigger
-            {
-                Property = Button.IsPressedProperty,
-                Value = true
-            };
-            pressedTrigger.Setters.Add(new Setter(Button.BackgroundProperty,
-                new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"))));
-            pressedTrigger.Setters.Add(new Setter(Button.ForegroundProperty, Brushes.White));
-
-            template.Triggers.Add(hoverTrigger);
-            template.Triggers.Add(pressedTrigger);
-
-            return template;
-        }
-
-        private void RenumberOpenInvoices()
-        {
-            for (int i = 0; i < _openInvoices.Count; i++)
-            {
-                _openInvoices[i].Number = i + 1;
-            }
-
-            _nextInvoiceNumber = _openInvoices.Count + 1;
-        }
-
-        private void CloseInvoice_Click(object sender, RoutedEventArgs e)
-        {
-            e.Handled = true;
-
             if (sender is not Button btn || btn.Tag is not SalesInvoiceTab invoice)
                 return;
 
-            if (_openInvoices.Count <= 1)
+            if (_openInvoices.Count == 1)
+            {
+                invoice.Cart.Clear();
+                invoice.SelectedCustomer = null;
+                invoice.CustomerDiscountValue = 0m;
+                invoice.CustomerDiscountType = DiscType.Percent;
+                invoice.InvoiceDiscountValue = 0m;
+                invoice.InvoiceDiscountType = DiscType.Percent;
+                invoice.UseLoyaltyPoints = false;
+                invoice.RedeemedPoints = 0m;
+                invoice.BarcodeDraft = "";
+                invoice.Date = DateTime.Now;
+
+                SwitchToInvoice(invoice);
                 return;
+            }
 
-            SaveUiStateToActiveInvoice();
-
-            var closingActive = invoice == _activeInvoice;
-            var closingIndex = _openInvoices.IndexOf(invoice);
+            var wasActive = invoice == _activeInvoice;
+            var index = _openInvoices.IndexOf(invoice);
 
             _openInvoices.Remove(invoice);
 
-            var linkedSession = _invoices.FirstOrDefault(x => x.Name == invoice.Title);
-            if (linkedSession != null)
-                _invoices.Remove(linkedSession);
-
-            RenumberOpenInvoices();
-            SyncInvoiceSessionNames();
-
-            if (closingActive)
+            if (wasActive)
             {
-                var nextIndex = Math.Max(0, closingIndex - 1);
-                if (nextIndex >= _openInvoices.Count)
-                    nextIndex = _openInvoices.Count - 1;
-
-                _activeInvoice = _openInvoices[nextIndex];
-                _currentInvoice = _invoices[nextIndex];
-                LoadActiveInvoiceToUi();
+                var nextIndex = Math.Min(index, _openInvoices.Count - 1);
+                _activeInvoice = null;
+                SwitchToInvoice(_openInvoices[nextIndex]);
             }
             else
             {
-                var activeIndex = _openInvoices.IndexOf(_activeInvoice);
-                if (activeIndex >= 0 && activeIndex < _invoices.Count)
-                    _currentInvoice = _invoices[activeIndex];
-            }
-
-            RefreshInvoiceTabs();
-            RefreshCartAndTotals();
-
-            BarcodeBox?.Focus();
-            Keyboard.Focus(BarcodeBox);
-        }
-
-        private void SyncInvoiceSessionNames()
-        {
-            for (int i = 0; i < _openInvoices.Count && i < _invoices.Count; i++)
-            {
-                _invoices[i].Name = _openInvoices[i].Title;
+                RefreshInvoiceTabs();
             }
         }
 
@@ -642,18 +455,20 @@ namespace POS_System
                 return;
             }
 
-            _openInvoices.Remove(_activeInvoice);
+            var currentIndex = _openInvoices.IndexOf(_activeInvoice);
+            if (currentIndex >= 0)
+                _openInvoices.RemoveAt(currentIndex);
 
             if (_openInvoices.Count == 0)
             {
                 _activeInvoice = null;
                 CreateNewInvoice();
+                return;
             }
-            else
-            {
-                _activeInvoice = null;
-                SwitchToInvoice(_openInvoices[0]);
-            }
+
+            var nextIndex = Math.Min(currentIndex, _openInvoices.Count - 1);
+            _activeInvoice = null;
+            SwitchToInvoice(_openInvoices[nextIndex]);
         }
 
         public void NewInvoice_Click(object sender, RoutedEventArgs e)
@@ -665,31 +480,14 @@ namespace POS_System
         // =========================
         // Product / Customer Pickers
         // =========================
-        public void ProductPickerCombo_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void ProductPickerCombo_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is not ComboBox cb) return;
-
-            cb.Focus();
-
-            if (cb.ItemsSource == null || !cb.Items.Cast<object>().Any())
+            if (!ProductPickerCombo.IsDropDownOpen)
             {
-                cb.DisplayMemberPath = "ProductName";
-                cb.ItemsSource = ProductRepo.GetAllVariants(limit: 200, includeInactive: false);
-            }
-
-            cb.IsDropDownOpen = true;
-            e.Handled = true;
-        }
-        public void ProductPickerCombo_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
-        {
-            if (sender is not ComboBox cb) return;
-
-            if (cb.ItemsSource == null || !cb.Items.Cast<object>().Any())
-            {
-                cb.DisplayMemberPath = "ProductName";
-                cb.ItemsSource = ProductRepo.GetAllVariants(limit: 200, includeInactive: false);
+                LoadProductPicker("");
             }
         }
+
         private void LoadCustomerPicker(string q = "")
         {
             var combo = FindControl<ComboBox>("CustomerPickerCombo");
@@ -701,22 +499,48 @@ namespace POS_System
 
         private void LoadProductPicker(string q = "")
         {
-            var combo = FindControl<ComboBox>("ProductPickerCombo");
-            if (combo == null) return;
+            if (_isUpdatingProductPickerItems) return;
 
-            combo.DisplayMemberPath = "ProductName";
+            _isUpdatingProductPickerItems = true;
 
-            List<VariantRow> items;
+            try
+            {
+                List<VariantRow> items;
 
-            if (string.IsNullOrWhiteSpace(q))
-                items = ProductRepo.GetAllVariants(limit: 200, includeInactive: false);
-            else
-                items = ProductRepo.SearchVariantsByBarcodeOrName(q, limit: 100, includeInactive: false);
+                if (string.IsNullOrWhiteSpace(q))
+                {
+                    items = ProductRepo.SearchVariantsByBarcodeOrName("", limit: 200, includeInactive: false);
+                }
+                else
+                {
+                    items = ProductRepo.SearchVariantsByBarcodeOrName(q.Trim(), limit: 200, includeInactive: false);
+                }
 
-            combo.ItemsSource = items;
-            combo.IsDropDownOpen = items.Count > 0;
+                _allProductPickerItems = items;
+
+                ProductPickerCombo.ItemsSource = null;
+                ProductPickerCombo.ItemsSource = _allProductPickerItems;
+                ProductPickerCombo.DisplayMemberPath = "ProductName";
+
+            }
+            finally
+            {
+                _isUpdatingProductPickerItems = false;
+            }
         }
 
+        private bool _isPageReady = false;
+        private void ProductPickerCombo_DropDownOpened(object sender, EventArgs e)
+        {
+            // لو الصفحة لسه بتفتح → اقفلها فورًا
+            if (!_isPageReady)
+            {
+                ProductPickerCombo.IsDropDownOpen = false;
+                return;
+            }
+
+            ProductPickerCombo.ItemsSource = ProductRepo.GetAllVariants(200, false);
+        }
         private void SetCustomerPickerSelection(CustomerRow? c)
         {
             var combo = FindControl<ComboBox>("CustomerPickerCombo");
@@ -745,36 +569,32 @@ namespace POS_System
             }
         }
 
-        public void ProductPickerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ProductPickerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (sender is not ComboBox cb) return;
-            if (cb.SelectedItem is not VariantRow v) return;
+            if (ProductPickerCombo.SelectedItem is not VariantRow v)
+                return;
 
             AddToCartVariant(v);
 
-            cb.SelectedItem = null;
-            cb.Text = "";
-            cb.ItemsSource = new List<VariantRow>();
+            ProductPickerCombo.SelectedIndex = -1;
+            ProductPickerCombo.Text = "";
+            ProductPickerCombo.IsDropDownOpen = false;
 
             BarcodeBox.Focus();
         }
 
-        public void ProductPickerCombo_KeyUp(object sender, KeyEventArgs e)
+        private void ProductPickerCombo_KeyUp(object sender, KeyEventArgs e)
         {
-            if (sender is not ComboBox cb) return;
+            if (e.Key == Key.Up || e.Key == Key.Down || e.Key == Key.Enter)
+                return;
 
-            var q = cb.Text?.Trim() ?? "";
-            cb.DisplayMemberPath = "ProductName";
+            var q = ProductPickerCombo.Text?.Trim() ?? "";
 
-            List<VariantRow> items;
+            ProductPickerCombo.ItemsSource =
+                string.IsNullOrWhiteSpace(q)
+                ? ProductRepo.GetAllVariants(200, false)
+                : ProductRepo.SearchVariantsByBarcodeOrName(q, 200, false);
 
-            if (string.IsNullOrWhiteSpace(q))
-                items = ProductRepo.GetAllVariants(limit: 200, includeInactive: false);
-            else
-                items = ProductRepo.SearchVariantsByBarcodeOrName(q, limit: 100, includeInactive: false);
-
-            cb.ItemsSource = items;
-            cb.IsDropDownOpen = items.Count > 0;
         }
         public void ProductPickerCombo_GotFocus(object sender, RoutedEventArgs e)
         {
@@ -801,6 +621,15 @@ namespace POS_System
             }
         }
 
+        private void CloseProductPickerDropdown()
+        {
+            if (ProductPickerCombo == null)
+                return;
+
+            ProductPickerCombo.IsDropDownOpen = false;
+            ProductPickerCombo.SelectedIndex = -1;
+        }
+
         public void CustomerPickerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isUpdatingCustomerPicker) return;
@@ -818,28 +647,26 @@ namespace POS_System
             BarcodeBox.SelectAll();
         }
 
+        private void ProductPickerCombo_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+  
+        }
+
+        private void ProductPickerCombo_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+
+                FocusBarcodeBox();
+                e.Handled = true;
+            }
+        }
 
 
         // =========================
         // Search / Scan
         // =========================
 
-        private void RefreshSearchResults(string query)
-        {
-            query = (query ?? "").Trim();
-
-            if (query.Length < 2)
-            {
-                _searchResults = new List<VariantRow>();
-                return;
-            }
-
-            _searchResults = ProductRepo.SearchVariantsByBarcodeOrName(
-                query: query,
-                limit: 80,
-                includeInactive: false
-            );
-        }
 
         private void BarcodeBox_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -849,7 +676,19 @@ namespace POS_System
             _searchTimer.Stop();
             _searchTimer.Start();
         }
+        private VariantRow? FindVariantForScan(string text)
+        {
+            var q = (text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(q))
+                return null;
 
+            var exact = ProductRepo.GetVariantByBarcode(q);
+            if (exact != null && exact.IsActive)
+                return exact;
+
+            return ProductRepo.SearchVariantsByBarcodeOrName(q, limit: 1, includeInactive: false)
+                              .FirstOrDefault();
+        }
         private void BarcodeBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key != Key.Enter) return;
@@ -857,14 +696,13 @@ namespace POS_System
             var q = BarcodeBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(q)) return;
 
-            var results = ProductRepo.SearchVariantsByBarcodeOrName(q, limit: 1, includeInactive: false);
-            if (results.Count == 0)
+            var v = FindVariantForScan(q);
+            if (v == null)
             {
                 System.Media.SystemSounds.Beep.Play();
                 return;
             }
 
-            var v = results[0];
             if (!v.IsActive)
             {
                 System.Media.SystemSounds.Beep.Play();
@@ -878,7 +716,7 @@ namespace POS_System
 
         private void AddToCartVariant(VariantRow v)
         {
-            if (!v.IsActive)
+            if (_activeInvoice == null || !v.IsActive)
                 return;
 
             if (v.Stock <= 0)
@@ -888,11 +726,11 @@ namespace POS_System
                 return;
             }
 
-            var existing = _currentInvoice.Cart.FirstOrDefault(x => x.VariantId == v.Id);
+            var existing = CurrentCart.FirstOrDefault(x => x.VariantId == v.Id);
 
             if (existing == null)
             {
-                _currentInvoice.Cart.Add(new CartItem
+                CurrentCart.Add(new CartItem
                 {
                     VariantId = v.Id,
                     Name = v.ProductName,
@@ -915,7 +753,7 @@ namespace POS_System
                 existing.Qty++;
             }
 
-            SyncActiveInvoiceCart();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
         }
 
@@ -969,24 +807,17 @@ namespace POS_System
         // =========================
         // Totals / Discounts
         // =========================
+        private record TotalsResult(
+        decimal SubTotal,
+        decimal InvoiceDiscount,
+        decimal CustomerDiscount,
+        decimal LoyaltyDiscount,
+        decimal Total
+        );
 
-        private void RefreshCartAndTotals()
+        private TotalsResult CalculateTotals()
         {
-            _isRefreshingCart = true;
-
-            if (CartList.ItemsSource == null)
-                CartList.ItemsSource = _currentInvoice.Cart;
-
-            CartList.Items.Refresh();
-
-            _isRefreshingCart = false;
-
-            RefreshTotalsOnly();
-        }
-
-        private void RefreshTotalsOnly()
-        {
-            var subTotal = GetSubTotal();
+            var subTotal = CurrentCart.Sum(x => x.LineTotalAfterDiscount);
 
             var invoiceDisc = CalcInvoiceDiscount(subTotal);
             var afterInvoice = Math.Max(0, subTotal - invoiceDisc);
@@ -997,42 +828,56 @@ namespace POS_System
             var loyaltyDisc = CalcLoyaltyDiscount(afterCustomer);
             var total = Math.Max(0, afterCustomer - loyaltyDisc);
 
-            SubTotalText.Text = subTotal.ToString("0.00", CultureInfo.InvariantCulture);
+            return new TotalsResult(
+                SubTotal: subTotal,
+                InvoiceDiscount: invoiceDisc,
+                CustomerDiscount: custDisc,
+                LoyaltyDiscount: loyaltyDisc,
+                Total: total
+            );
+        }
 
-            var discText = invoiceDisc.ToString("0.00", CultureInfo.InvariantCulture);
+        private void RefreshCartAndTotals()
+        {
+            _isRefreshingCart = true;
 
-            if (_selectedCustomer != null && custDisc > 0)
-                discText += $" (+Cust {custDisc:0.00})";
+            if (CartList.ItemsSource != CurrentCart)
+                CartList.ItemsSource = CurrentCart;
 
-            if (_selectedCustomer != null && loyaltyDisc > 0)
-                discText += $" (+Points {loyaltyDisc:0.00})";
+            CartList.Items.Refresh();
+
+            _isRefreshingCart = false;
+
+            RefreshTotalsOnly();
+        }
+
+        private void RefreshTotalsOnly()
+        {
+            var totals = CalculateTotals();
+
+            SubTotalText.Text = totals.SubTotal.ToString("0.00", CultureInfo.InvariantCulture);
+
+            var discText = totals.InvoiceDiscount.ToString("0.00", CultureInfo.InvariantCulture);
+
+            if (_selectedCustomer != null && totals.CustomerDiscount > 0)
+                discText += $" (+Cust {totals.CustomerDiscount:0.00})";
+
+            if (_selectedCustomer != null && totals.LoyaltyDiscount > 0)
+                discText += $" (+Points {totals.LoyaltyDiscount:0.00})";
 
             InvoiceDiscountText.Text = discText;
-            TotalText.Text = total.ToString("0.00", CultureInfo.InvariantCulture);
+            TotalText.Text = totals.Total.ToString("0.00", CultureInfo.InvariantCulture);
 
             if (RedeemPointsText != null)
-                RedeemPointsText.Text = $"Redeemed Points: {_redeemedPoints:0} | Discount: {loyaltyDisc:0.00}";
+                RedeemPointsText.Text = $"Redeemed Points: {_redeemedPoints:0} | Discount: {totals.LoyaltyDiscount:0.00}";
 
             UpdateCustomerHeader();
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
         }
 
-        private decimal GetSubTotal() => _currentInvoice.Cart.Sum(x => x.LineTotalAfterDiscount);
+        private decimal GetSubTotal() => CalculateTotals().SubTotal;
 
-        private decimal GetTotal()
-        {
-            var subTotal = GetSubTotal();
-
-            var invDisc = CalcInvoiceDiscount(subTotal);
-            var afterInvoice = Math.Max(0, subTotal - invDisc);
-
-            var custDisc = CalcCustomerDiscount(afterInvoice);
-            var afterCustomer = Math.Max(0, afterInvoice - custDisc);
-
-            var loyaltyDisc = CalcLoyaltyDiscount(afterCustomer);
-
-            return Math.Max(0, afterCustomer - loyaltyDisc);
-        }
+        private decimal GetTotal() => CalculateTotals().Total;
 
         private decimal CalcInvoiceDiscount(decimal subTotal)
         {
@@ -1068,7 +913,7 @@ namespace POS_System
                 ? DiscType.Amount
                 : DiscType.Percent;
 
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
             RefreshTotalsOnly();
         }
 
@@ -1081,7 +926,7 @@ namespace POS_System
                     ? DiscType.Amount
                     : DiscType.Percent;
 
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
         }
 
@@ -1098,7 +943,6 @@ namespace POS_System
 
             item.DiscountValue = val;
 
-            SyncActiveInvoiceCart();
             RefreshTotalsOnly();
         }
 
@@ -1110,7 +954,6 @@ namespace POS_System
             if (sender is ComboBox cb && cb.SelectedItem is ComboBoxItem cbi && cbi.Tag is string tag)
                 item.DiscountType = tag == "Amount" ? DiscType.Amount : DiscType.Percent;
 
-            SyncActiveInvoiceCart();
             RefreshTotalsOnly();
         }
 
@@ -1120,33 +963,25 @@ namespace POS_System
 
         private void Clear_Click(object sender, RoutedEventArgs e)
         {
-            _currentInvoice.Cart.Clear();
-
+            CurrentCart.Clear();
             _invoiceDiscountValue = 0m;
             _invoiceDiscountType = DiscType.Percent;
             InvoiceDiscountBox.Text = "";
             InvoiceDiscPercent.IsChecked = true;
-
             _selectedCustomer = null;
             _customerDiscountValue = 0m;
             _customerDiscountType = DiscType.Percent;
-
             _useLoyaltyPoints = false;
             _redeemedPoints = 0m;
 
             if (UsePointsCheckBox != null)
                 UsePointsCheckBox.IsChecked = false;
-
             if (AddCustomerOverlay != null)
                 AddCustomerOverlay.Visibility = Visibility.Collapsed;
 
             SetCustomerPickerSelection(null);
-            //SetInvoiceDateUi(DateTime.Now);
-
-            SyncActiveInvoiceCart();
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
-
             BarcodeBox.Clear();
             BarcodeBox.Focus();
         }
@@ -1174,7 +1009,7 @@ namespace POS_System
             }
 
             item.Qty++;
-            SyncActiveInvoiceCart();
+            PersistActiveInvoiceUiState();
             RefreshTotalsOnly();
         }
 
@@ -1188,8 +1023,8 @@ namespace POS_System
 
             item.Qty--;
 
-            SyncActiveInvoiceCart();
             CartList.Items.Refresh();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
         }
 
@@ -1198,21 +1033,12 @@ namespace POS_System
             if ((sender as FrameworkElement)?.DataContext is not CartItem item)
                 return;
 
-            _currentInvoice.Cart.Remove(item);
+            CurrentCart.Remove(item);
 
-            SyncActiveInvoiceCart();
             CartList.Items.Refresh();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
         }
-
-
-
-
-
-
-
-
- 
 
         // =========================
         // Payment Overlay
@@ -1263,13 +1089,16 @@ namespace POS_System
 
         private void ConfirmPayment_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentInvoice.Cart.Count == 0)
+            if (CurrentCart.Count == 0)
             {
                 System.Media.SystemSounds.Beep.Play();
                 return;
             }
 
-            var total = GetTotal();
+            var totals = CalculateTotals();
+            var total = totals.Total;
+            var subTotal = totals.SubTotal;
+
             var received = ParseDecimalSafe(ReceivedBox.Text);
 
             if (_pendingPayKind == PayKind.Cash && received < total)
@@ -1291,11 +1120,10 @@ namespace POS_System
                 return;
             }
 
-            var subTotal = GetSubTotal();
             var invDiscTypeText = _invoiceDiscountType == DiscType.Amount ? "Amount" : "Percent";
             var typeText = "Sale";
 
-            var saleLines = _currentInvoice.Cart.Select(c =>
+            var saleLines = CurrentCart.Select(c =>
             {
                 var lineDiscType = c.DiscountType == DiscType.Amount ? "Amount" : "Percent";
                 return new SalesRepo.SaleLine(
@@ -1312,7 +1140,7 @@ namespace POS_System
                 );
             }).ToList();
 
-            foreach (var c in _currentInvoice.Cart)
+            foreach (var c in CurrentCart)
             {
                 var stockNow = StockRepo.GetStock(c.VariantId, branchId);
                 if (stockNow < c.Qty)
@@ -1497,7 +1325,7 @@ namespace POS_System
 
             doc.Blocks.Add(new Paragraph(new Run("--------------------------------")));
 
-            foreach (var it in _currentInvoice.Cart)
+            foreach (var it in CurrentCart)
             {
                 var line = $"{it.Barcode} ({it.Size}/{it.Color}) x{it.Qty}  {it.Price:0.00}  = {it.LineTotalAfterDiscount:0.00}";
                 if (it.LineDiscountAmount > 0)
@@ -1508,10 +1336,10 @@ namespace POS_System
 
             doc.Blocks.Add(new Paragraph(new Run("--------------------------------")));
 
-            var sub = GetSubTotal();
-            var invDisc = CalcInvoiceDiscount(sub);
-            var afterInv = Math.Max(0, sub - invDisc);
-            var custDisc = CalcCustomerDiscount(afterInv);
+            var totals = CalculateTotals();
+            var sub = totals.SubTotal;
+            var invDisc = totals.InvoiceDiscount;
+            var custDisc = totals.CustomerDiscount;
 
             doc.Blocks.Add(new Paragraph(new Run($"SubTotal: {sub:0.00}")));
             doc.Blocks.Add(new Paragraph(new Run($"InvDisc:  {invDisc:0.00}")));
@@ -1591,7 +1419,7 @@ namespace POS_System
                 UsePointsCheckBox.IsChecked = false;
 
             SetCustomerPickerSelection(null);
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
         }
 
@@ -1603,7 +1431,6 @@ namespace POS_System
         private void RefreshCustomerResults(string q)
         {
             _customerResults = CustomerRepo.Search(q, limit: 200, activeOnly: true);
-            CustomersList.ItemsSource = null;
             CustomersList.ItemsSource = _customerResults;
         }
 
@@ -1635,7 +1462,7 @@ namespace POS_System
             _selectedCustomer = c;
             ApplySelectedCustomerDiscount();
 
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
             HideCustomerOverlay();
             RefreshCartAndTotals();
         }
@@ -1676,7 +1503,7 @@ namespace POS_System
         private void UsePointsCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _useLoyaltyPoints = UsePointsCheckBox.IsChecked == true;
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
         }
 
@@ -1698,7 +1525,7 @@ namespace POS_System
                 ApplySelectedCustomerDiscount();
             }
 
-            SaveUiStateToActiveInvoice();
+            PersistActiveInvoiceUiState();
             RefreshCartAndTotals();
         }
 
