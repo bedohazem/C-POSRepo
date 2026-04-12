@@ -1,7 +1,14 @@
-﻿using System;
+﻿using POS_System.printing;
+using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Printing;
+using System.Windows.Markup;
+
 
 namespace POS_System
 {
@@ -22,6 +29,260 @@ namespace POS_System
             RefreshProducts();
             UpdateRightHeader();
         }
+
+        private string GenerateBarcode()
+        {
+            // رقم شبه EAN داخلي بسيط وفريد نسبيًا
+            return DateTime.Now.ToString("yyMMddHHmmssfff");
+        }
+
+        private void RefreshBarcodePreview()
+        {
+            try
+            {
+                var text = (VarBarcodeBox.Text ?? "").Trim();
+
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    BarcodePreviewImage.Source = null;
+                    return;
+                }
+
+                BarcodePreviewImage.Source = BarcodeHelper.GenerateCode128(text);
+            }
+            catch
+            {
+                BarcodePreviewImage.Source = null;
+            }
+        }
+
+        private void VarBarcodeBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            RefreshBarcodePreview();
+        }
+
+        private void PrintBarcode_Click(object sender, RoutedEventArgs e)
+        {
+            if (VariantsList.SelectedItem is not VariantRow v)
+            {
+                MessageBox.Show("Select a variant first.");
+                return;
+            }
+
+            int copies = 1;
+            if (!int.TryParse((BarcodeCopiesBox.Text ?? "1").Trim(), out copies) || copies <= 0)
+                copies = 1;
+
+            var printerSettings = PrinterSettingsRepo.Get();
+
+            // 🟢 TSPL (احترافي)
+            if (printerSettings.PrintMode == "TSPL")
+            {
+                TsplPrinter.PrintBarcode(
+                    printerSettings.PrinterName,
+                    v.Barcode,
+                    v.ProductName,
+                    v.SellPrice,
+                    copies);
+
+                return;
+            }
+
+            // 🔵 Windows fallback (القديم)
+            var s = BarcodePrintSettingsRepo.Get();
+
+            var pd = new PrintDialog();
+            if (pd.ShowDialog() != true)
+                return;
+
+            var doc = new FixedDocument();
+
+            double pageWidth = MmToDip(s.LabelWidthMm);
+            double pageHeight = MmToDip(s.LabelHeightMm);
+
+            doc.DocumentPaginator.PageSize = new Size(pageWidth, pageHeight);
+
+            for (int i = 0; i < copies; i++)
+            {
+                var label = BuildBarcodeLabelElement(v, s);
+
+                var pageContent = new PageContent();
+                var fixedPage = new FixedPage
+                {
+                    Width = pageWidth,
+                    Height = pageHeight,
+                    Background = Brushes.White
+                };
+
+                fixedPage.Children.Add(label);
+                ((IAddChild)pageContent).AddChild(fixedPage);
+                doc.Pages.Add(pageContent);
+            }
+
+            pd.PrintDocument(doc.DocumentPaginator, "Barcode Labels");
+        }
+
+        private static double MmToDip(double mm)
+        {
+            return mm * 96.0 / 25.4;
+        }
+
+        private static FormattedText MakeText(string text, double fontSize, FontWeight weight)
+        {
+            return new FormattedText(
+                text ?? "",
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                new Typeface(new FontFamily("Arial"), FontStyles.Normal, weight, FontStretches.Normal),
+                fontSize,
+                Brushes.Black,
+                1.0);
+        }
+
+        private static int MmToPixels(double mm, double dpi)
+        {
+            return (int)Math.Round(mm * dpi / 25.4);
+        }
+
+        private void DrawSingleLabel(DrawingContext dc, VariantRow v, BarcodePrintSettings s, double finalW, double finalH, double offsetY)
+        {
+            int barcodePxWidth = Math.Max(80, MmToPixels(s.BarcodeWidthMm, 203));
+            int barcodePxHeight = Math.Max(20, MmToPixels(s.BarcodeHeightMm, 203));
+
+            var barcode = BarcodeHelper.GenerateCode128(v.Barcode, barcodePxWidth, barcodePxHeight);
+
+            // خلفية الليبل
+            dc.DrawRectangle(Brushes.White, null, new Rect(0, offsetY, finalW, finalH));
+
+            if (s.ShowProductName)
+            {
+                var name = MakeText(v.ProductName, s.NameFontSize, FontWeights.Bold);
+                double x = MmToDip(s.NameLeftMm);
+                double y = offsetY + MmToDip(s.NameTopMm);
+
+                if (x < 0) x = 0;
+                if (y < offsetY) y = offsetY;
+
+                dc.DrawText(name, new Point(x, y));
+            }
+
+            if (s.ShowPrice)
+            {
+                var price = MakeText($"{v.SellPrice:0.##}", s.PriceFontSize, FontWeights.Bold);
+                double x = MmToDip(s.PriceLeftMm);
+                double y = offsetY + MmToDip(s.PriceTopMm);
+
+                if (x < 0) x = 0;
+                if (y < offsetY) y = offsetY;
+
+                dc.DrawText(price, new Point(x, y));
+            }
+
+            double imgX = MmToDip(s.BarcodeLeftMm);
+            double imgY = offsetY + MmToDip(s.BarcodeTopMm);
+            double imgW = MmToDip(s.BarcodeWidthMm);
+            double imgH = MmToDip(s.BarcodeHeightMm);
+
+            if (imgX < 0) imgX = 0;
+            if (imgY < offsetY) imgY = offsetY;
+
+            if (imgX + imgW > finalW)
+                imgW = Math.Max(20, finalW - imgX);
+
+            dc.DrawImage(barcode, new Rect(imgX, imgY, imgW, imgH));
+
+            if (s.ShowBarcodeText)
+            {
+                var bc = MakeText(v.Barcode, s.BarcodeTextFontSize, FontWeights.Regular);
+                double x = MmToDip(s.BarcodeTextLeftMm);
+                double y = offsetY + MmToDip(s.BarcodeTextTopMm);
+
+                if (x < 0) x = 0;
+                if (y < offsetY) y = offsetY;
+
+                dc.DrawText(bc, new Point(x, y));
+            }
+        }
+
+        private FrameworkElement BuildBarcodeLabelElement(VariantRow v, BarcodePrintSettings s)
+        {
+            double labelW = MmToDip(s.LabelWidthMm);
+            double labelH = MmToDip(s.LabelHeightMm);
+
+            int barcodePxWidth = Math.Max(80, MmToPixels(s.BarcodeWidthMm, 203));
+            int barcodePxHeight = Math.Max(20, MmToPixels(s.BarcodeHeightMm, 203));
+
+            var barcode = BarcodeHelper.GenerateCode128(v.Barcode, barcodePxWidth, barcodePxHeight);
+
+            var canvas = new Canvas
+            {
+                Width = labelW,
+                Height = labelH,
+                Background = Brushes.White
+            };
+
+            if (s.ShowProductName)
+            {
+                var name = new TextBlock
+                {
+                    Text = v.ProductName,
+                    FontSize = s.NameFontSize,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.Black
+                };
+
+                Canvas.SetLeft(name, MmToDip(s.NameLeftMm));
+                Canvas.SetTop(name, MmToDip(s.NameTopMm));
+                canvas.Children.Add(name);
+            }
+
+            if (s.ShowPrice)
+            {
+                var price = new TextBlock
+                {
+                    Text = $"{v.SellPrice:0.##}",
+                    FontSize = s.PriceFontSize,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.Black
+                };
+
+                Canvas.SetLeft(price, MmToDip(s.PriceLeftMm));
+                Canvas.SetTop(price, MmToDip(s.PriceTopMm));
+                canvas.Children.Add(price);
+            }
+
+            var img = new Image
+            {
+                Source = barcode,
+                Width = MmToDip(s.BarcodeWidthMm),
+                Height = MmToDip(s.BarcodeHeightMm),
+                Stretch = Stretch.Fill
+            };
+
+            Canvas.SetLeft(img, MmToDip(s.BarcodeLeftMm));
+            Canvas.SetTop(img, MmToDip(s.BarcodeTopMm));
+            canvas.Children.Add(img);
+
+            if (s.ShowBarcodeText)
+            {
+                var bc = new TextBlock
+                {
+                    Text = v.Barcode,
+                    FontSize = s.BarcodeTextFontSize,
+                    Foreground = Brushes.Black
+                };
+
+                Canvas.SetLeft(bc, MmToDip(s.BarcodeTextLeftMm));
+                Canvas.SetTop(bc, MmToDip(s.BarcodeTextTopMm));
+                canvas.Children.Add(bc);
+            }
+
+            return canvas;
+        }
+
+
+
+
 
         // --------- Refresh ---------
 
@@ -170,6 +431,11 @@ namespace POS_System
 
         // --------- Variants ---------
 
+        private void GenerateBarcode_Click(object sender, RoutedEventArgs e)
+        {
+            VarBarcodeBox.Text = GenerateBarcode();
+            RefreshBarcodePreview();
+        }
         private void AddVariant_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedProductId == null)
@@ -185,13 +451,14 @@ namespace POS_System
             ProductEditor.Visibility = Visibility.Collapsed;
             VariantEditor.Visibility = Visibility.Visible;
 
-            VarBarcodeBox.Text = "";
+            VarBarcodeBox.Text = GenerateBarcode();
             VarSizeBox.Text = "";
             VarColorBox.Text = "";
             VarSellPriceBox.Text = "0";
             VarCostPriceBox.Text = "0";
             VarActiveBox.IsChecked = true;
-
+           
+            RefreshBarcodePreview();
             ShowEditor();
         }
 
@@ -219,6 +486,7 @@ namespace POS_System
 
             VarActiveBox.IsChecked = v.IsActive;
 
+            RefreshBarcodePreview();
             ShowEditor();
         }
 
@@ -332,7 +600,7 @@ namespace POS_System
 
                             var bc = (VarBarcodeBox.Text ?? "").Trim();
                             if (string.IsNullOrWhiteSpace(bc))
-                                throw new Exception("Barcode is required.");
+                                bc = GenerateBarcode();
 
                             var size = (VarSizeBox.Text ?? "").Trim();
                             var color = (VarColorBox.Text ?? "").Trim();

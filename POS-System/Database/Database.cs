@@ -162,6 +162,17 @@ CREATE TABLE IF NOT EXISTS Suppliers(
   IsActive INTEGER NOT NULL DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS SupplierPayments (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    SupplierId INTEGER NOT NULL,
+    AtUtc TEXT NOT NULL,
+    BranchId INTEGER,
+    UserId INTEGER,
+    Amount REAL NOT NULL,
+    Notes TEXT,
+    FOREIGN KEY (SupplierId) REFERENCES Suppliers(Id)
+);
+
 CREATE TABLE IF NOT EXISTS Purchases(
   Id INTEGER PRIMARY KEY AUTOINCREMENT,
   SupplierId INTEGER NOT NULL,
@@ -219,6 +230,43 @@ CREATE TABLE IF NOT EXISTS AuditLogs(
   AfterJson TEXT NULL
 );
 
+
+CREATE TABLE IF NOT EXISTS BarcodePrintSettings(
+  Id INTEGER PRIMARY KEY CHECK(Id = 1),
+
+  LabelWidthMm REAL NOT NULL DEFAULT 50,
+  LabelHeightMm REAL NOT NULL DEFAULT 35,
+
+  NameFontSize REAL NOT NULL DEFAULT 7,
+  PriceFontSize REAL NOT NULL DEFAULT 7,
+  BarcodeTextFontSize REAL NOT NULL DEFAULT 6.5,
+
+  BarcodeWidthMm REAL NOT NULL DEFAULT 39,
+  BarcodeHeightMm REAL NOT NULL DEFAULT 9,
+
+  ShowPrice INTEGER NOT NULL DEFAULT 1,
+  ShowProductName INTEGER NOT NULL DEFAULT 1,
+  ShowBarcodeText INTEGER NOT NULL DEFAULT 1,
+
+  NameLeftMm REAL NOT NULL DEFAULT 1,
+  NameTopMm REAL NOT NULL DEFAULT 1,
+
+  PriceLeftMm REAL NOT NULL DEFAULT 40,
+  PriceTopMm REAL NOT NULL DEFAULT 1,
+
+  BarcodeLeftMm REAL NOT NULL DEFAULT 5.5,
+  BarcodeTopMm REAL NOT NULL DEFAULT 8,
+
+  BarcodeTextLeftMm REAL NOT NULL DEFAULT 11,
+  BarcodeTextTopMm REAL NOT NULL DEFAULT 18
+);
+
+CREATE TABLE IF NOT EXISTS PrinterSettings(
+  Id INTEGER PRIMARY KEY CHECK(Id = 1),
+  PrinterName TEXT,
+  PrintMode TEXT NOT NULL DEFAULT 'Windows' -- Windows / TSPL
+);
+
 CREATE INDEX IF NOT EXISTS IX_AuditLogs_AtUtc ON AuditLogs(AtUtc);
 CREATE INDEX IF NOT EXISTS IX_AuditLogs_UserId_AtUtc ON AuditLogs(UserId, AtUtc);
 CREATE INDEX IF NOT EXISTS IX_AuditLogs_Entity ON AuditLogs(EntityName, EntityId, AtUtc);
@@ -236,8 +284,46 @@ CREATE INDEX IF NOT EXISTS IX_PurchaseItems_PurchaseId ON PurchaseItems(Purchase
 CREATE INDEX IF NOT EXISTS IX_StockMov_VariantId ON StockMovements(VariantId);
 CREATE INDEX IF NOT EXISTS IX_StockMov_Type ON StockMovements(Type);
 CREATE INDEX IF NOT EXISTS IX_StockMov_AtUtc ON StockMovements(AtUtc);
+
+CREATE INDEX IF NOT EXISTS IX_SupplierPayments_SupplierId ON SupplierPayments(SupplierId);
+CREATE INDEX IF NOT EXISTS IX_SupplierPayments_AtUtc ON SupplierPayments(AtUtc);
 ";
             cmd.ExecuteNonQuery();
+
+            using var seedCmd = con.CreateCommand();
+
+            using var seedPrinter = con.CreateCommand();
+            seedPrinter.CommandText = @"
+                INSERT OR IGNORE INTO PrinterSettings(Id, PrinterName, PrintMode)
+                VALUES (1, '', 'Windows');
+                ";
+            seedPrinter.ExecuteNonQuery();
+
+            seedCmd.CommandText = @"
+                INSERT OR IGNORE INTO BarcodePrintSettings(
+                    Id,
+                    LabelWidthMm, LabelHeightMm,
+                    NameFontSize, PriceFontSize, BarcodeTextFontSize,
+                    BarcodeWidthMm, BarcodeHeightMm,
+                    ShowPrice, ShowProductName, ShowBarcodeText,
+                    NameLeftMm, NameTopMm,
+                    PriceLeftMm, PriceTopMm,
+                    BarcodeLeftMm, BarcodeTopMm,
+                    BarcodeTextLeftMm, BarcodeTextTopMm
+                )
+                VALUES
+                (
+                    1,
+                    50, 35,
+                    7, 7, 6.5,
+                    39, 9,
+                    1, 1, 1,
+                    1, 1,
+                    40, 1,
+                    5.5, 8,
+                    11, 18
+                );";
+            seedCmd.ExecuteNonQuery();
 
             SeedIfEmpty(con);
         }

@@ -127,6 +127,144 @@
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
+                
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Width="520"
+                        Margin="0,0,12,12">
+                    <StackPanel>
+                        <TextBlock Text="Barcode Print Setup"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,12"/>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Width="360" Margin="0,0,12,12">
+                            <StackPanel>
+                                <TextBlock Text="Printer Setup"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,12"/>
+
+                                <TextBlock Text="Select Printer" Opacity="0.8"/>
+                                <ComboBox x:Name="PrinterComboBox"
+                  Height="36"
+                  Style="{StaticResource DiscountComboStyle}"
+                  Margin="0,6,0,10"/>
+
+                                <TextBlock Text="Print Mode" Opacity="0.8"/>
+                                <ComboBox x:Name="PrintModeComboBox"
+                  Height="36"
+                  Style="{StaticResource DiscountComboStyle}"
+                  Margin="0,6,0,10">
+                                    <ComboBoxItem Content="Windows"/>
+                                    <ComboBoxItem Content="TSPL"/>
+                                </ComboBox>
+
+                                <Button Content="Save Printer Settings"
+                Style="{StaticResource PrimaryButtonStyle}"
+                Click="SavePrinterSettings_Click"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Label Width (mm)" Opacity="0.8" Margin="0,0,0,6"/>
+                                <TextBox x:Name="BarcodeLabelWidthBox" Style="{StaticResource DarkTextBoxStyle}" Text="50"/>
+
+                                <TextBlock Text="Label Height (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeLabelHeightBox" Style="{StaticResource DarkTextBoxStyle}" Text="35"/>
+
+                                <TextBlock Text="Name Font Size" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeNameFontSizeBox" Style="{StaticResource DarkTextBoxStyle}" Text="7"/>
+
+                                <TextBlock Text="Name Left (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeNameLeftBox" Style="{StaticResource DarkTextBoxStyle}" Text="1"/>
+
+                                <TextBlock Text="Name Top (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeNameTopBox" Style="{StaticResource DarkTextBoxStyle}" Text="1"/>
+
+                                <TextBlock Text="Price Font Size" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodePriceFontSizeBox" Style="{StaticResource DarkTextBoxStyle}" Text="7"/>
+
+                                <TextBlock Text="Price Left (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodePriceLeftBox" Style="{StaticResource DarkTextBoxStyle}" Text="40"/>
+
+                                <TextBlock Text="Price Top (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodePriceTopBox" Style="{StaticResource DarkTextBoxStyle}" Text="1"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Barcode Width (mm)" Opacity="0.8" Margin="0,0,0,6"/>
+                                <TextBox x:Name="BarcodeWidthBox" Style="{StaticResource DarkTextBoxStyle}" Text="39"/>
+
+                                <TextBlock Text="Barcode Height (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeHeightBox" Style="{StaticResource DarkTextBoxStyle}" Text="9"/>
+
+                                <TextBlock Text="Barcode Left (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeLeftBox" Style="{StaticResource DarkTextBoxStyle}" Text="5.5"/>
+
+                                <TextBlock Text="Barcode Top (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeTopBox" Style="{StaticResource DarkTextBoxStyle}" Text="8"/>
+
+                                <TextBlock Text="Barcode Text Font Size" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeTextFontSizeBox" Style="{StaticResource DarkTextBoxStyle}" Text="6.5"/>
+
+                                <TextBlock Text="Barcode Text Left (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeTextLeftBox" Style="{StaticResource DarkTextBoxStyle}" Text="11"/>
+
+                                <TextBlock Text="Barcode Text Top (mm)" Opacity="0.8" Margin="0,10,0,6"/>
+                                <TextBox x:Name="BarcodeTextTopBox" Style="{StaticResource DarkTextBoxStyle}" Text="18"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <WrapPanel Margin="0,0,0,10">
+                            <CheckBox x:Name="ShowProductNameBox"
+                                      Content="Show product name"
+                                      Margin="0,0,12,0"
+                                      Foreground="{StaticResource TextBrush}"/>
+
+                            <CheckBox x:Name="ShowPriceBox"
+                                      Content="Show price"
+                                      Margin="0,0,12,0"
+                                      Foreground="{StaticResource TextBrush}"/>
+
+                            <CheckBox x:Name="ShowBarcodeTextBox"
+                                      Content="Show barcode text"
+                                      Foreground="{StaticResource TextBrush}"/>
+                        </WrapPanel>
+
+                        <WrapPanel>
+                            <Button Content="Save Barcode Settings"
+                                    Width="170"
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="SaveBarcodeSettings_Click"/>
+
+                            <Button Content="Reset Defaults"
+                                    Width="130"
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="ResetBarcodeSettings_Click"/>
+
+                            <Button Content="Print Test"
+                                    Width="110"
+                                    Style="{StaticResource DarkButtonStyle}"
+                                    Click="PrintTestBarcode_Click"/>
+                        </WrapPanel>
+
+                        <TextBlock x:Name="BarcodeSettingsStatusText"
+                                   Margin="0,10,0,0"
+                                   Opacity="0.85"
+                                   TextWrapping="Wrap"
+                                   Text="Barcode settings ready."/>
+                    </StackPanel>
+                </Border>
+                
             </WrapPanel>
         </Grid>
     </ScrollViewer>

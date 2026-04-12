@@ -42,24 +42,72 @@ namespace POS_System
         {
             InitializeComponent();
 
-            // ✅ خليه false لحد ما نخلص Setup
             _uiReady = false;
 
             BranchText.Text = SessionManager.CurrentBranchId == null
                 ? "Branch: (All)"
                 : $"Branch: {SessionManager.CurrentBranchName}";
 
-            LoadSuppliers();
-            RefreshInventory();
-            RefreshReport();
-
-            // ✅ دلوقتي UI جاهز
             _uiReady = true;
-
             RecalcTotals();
-
         }
 
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+            RefreshInventory();
+            RefreshReport();
+            RefreshPurchaseHistory();
+            LoadSuppliers();
+
+            SupplierPaymentSupplierBox.ItemsSource = PurchaseRepo.GetSuppliers(null, false);
+            StatementSupplierBox.ItemsSource = PurchaseRepo.GetSuppliers(null, false);
+
+            if (StatementSupplierBox != null)
+                StatementSupplierBox.ItemsSource = PurchaseRepo.GetSuppliers(null, false);
+        }
+
+        private void RefreshPurchaseCart()
+        {
+            PurchaseItemsList.ItemsSource = null;
+            PurchaseItemsList.ItemsSource = _cart.ToList();
+        }
+
+        private void RefreshPurchaseHistory()
+        {
+            var branchId = SessionManager.CurrentBranchId;
+            var q = PurchaseHistorySearchBox?.Text?.Trim();
+
+            PurchaseHistoryList.ItemsSource = null;
+            PurchaseHistoryList.ItemsSource = PurchaseRepo.GetPurchases(
+                search: q,
+                branchId: branchId,
+                limit: 300);
+
+            PurchaseHistoryItemsList.ItemsSource = null;
+        }
+
+        private void RefreshPurchaseHistory_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshPurchaseHistory();
+        }
+
+        private void PurchaseHistorySearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!_uiReady) return;
+            RefreshPurchaseHistory();
+        }
+
+        private void PurchaseHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (PurchaseHistoryList.SelectedItem is not PurchaseRow row)
+            {
+                PurchaseHistoryItemsList.ItemsSource = null;
+                return;
+            }
+
+            PurchaseHistoryItemsList.ItemsSource = null;
+            PurchaseHistoryItemsList.ItemsSource = PurchaseRepo.GetPurchaseItems(row.Id);
+        }
         // =========================
         // Inventory
         // =========================
@@ -118,7 +166,11 @@ namespace POS_System
         {
             RefreshInventory();
             RefreshReport();
+            RefreshPurchaseHistory();
             LoadSuppliers();
+
+            if (StatementSupplierBox != null)
+                StatementSupplierBox.ItemsSource = PurchaseRepo.GetSuppliers(null, false);
         }
 
         private void StockIn_Click(object sender, RoutedEventArgs e)
@@ -267,6 +319,96 @@ namespace POS_System
             }
         }
 
+        private void StatementSupplierBox_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (StatementSupplierBox.SelectedItem is not SupplierRow sup)
+                return;
+
+            var statement = PurchaseRepo.GetSupplierStatement(
+                sup.Id,
+                SessionManager.CurrentBranchId);
+
+            SupplierStatementList.ItemsSource = statement.rows;
+
+            StatementTotalText.Text = $"Purchases: {statement.purchasesTotal:0.00}";
+            StatementPaidText.Text = $"Invoice Paid: {statement.invoicePaid:0.00}";
+            StatementDueText.Text = $"Due: {statement.due:0.00}";
+        }
+
+        private void RefreshSupplierPayments()
+        {
+            if (SupplierPaymentSupplierBox.SelectedItem is not SupplierRow sup)
+            {
+                SupplierPaymentsList.ItemsSource = null;
+                SupplierPaymentTotalPurchasesText.Text = "Purchases: 0.00";
+                SupplierPaymentInvoicePaidText.Text = "Invoice Paid: 0.00";
+                SupplierPaymentExtraPaidText.Text = "Extra Payments: 0.00";
+                SupplierPaymentDueText.Text = "Due: 0.00";
+                return;
+            }
+
+            var branchId = SessionManager.CurrentBranchId;
+
+            SupplierPaymentsList.ItemsSource = null;
+            SupplierPaymentsList.ItemsSource = PurchaseRepo.GetSupplierPayments(sup.Id, branchId);
+
+            var statement = PurchaseRepo.GetSupplierStatement(sup.Id, branchId);
+
+            SupplierPaymentTotalPurchasesText.Text = $"Purchases: {statement.purchasesTotal:0.00}";
+            SupplierPaymentInvoicePaidText.Text = $"Invoice Paid: {statement.invoicePaid:0.00}";
+            SupplierPaymentExtraPaidText.Text = $"Extra Payments: {statement.extraPayments:0.00}";
+            SupplierPaymentDueText.Text = $"Due: {statement.due:0.00}";
+        }
+
+        private void SupplierPaymentSupplierBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RefreshSupplierPayments();
+        }
+        private void SaveSupplierPayment_Click(object sender, RoutedEventArgs e)
+        {
+            if (SupplierPaymentSupplierBox.SelectedItem is not SupplierRow sup)
+            {
+                MessageBox.Show("اختار المورد أولًا.");
+                return;
+            }
+
+            if (!decimal.TryParse((SupplierPaymentAmountBox.Text ?? "0").Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var amount) || amount <= 0)
+            {
+                MessageBox.Show("المبلغ غير صحيح.");
+                return;
+            }
+
+            var notes = string.IsNullOrWhiteSpace(SupplierPaymentNotesBox.Text)
+                ? null
+                : SupplierPaymentNotesBox.Text.Trim();
+
+            try
+            {
+                PurchaseRepo.AddSupplierPayment(
+                    supplierId: sup.Id,
+                    branchId: SessionManager.CurrentBranchId,
+                    userId: SessionManager.CurrentUser?.Id,
+                    amount: amount,
+                    notes: notes);
+
+                MessageBox.Show("تم تسجيل دفعة المورد بنجاح.");
+
+                SupplierPaymentAmountBox.Text = "0";
+                SupplierPaymentNotesBox.Text = "";
+
+                RefreshSupplierPayments();
+
+                // لو عندك تبويب حساب المورد
+                if (StatementSupplierBox != null && StatementSupplierBox.SelectedItem is SupplierRow statementSup && statementSup.Id == sup.Id)
+                {
+                    StatementSupplierBox_Changed(StatementSupplierBox, null!);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("فشل تسجيل دفعة المورد:\n" + ex.Message);
+            }
+        }
         // =========================
         // Purchases
         // =========================
@@ -377,8 +519,7 @@ namespace POS_System
                 });
             }
 
-            PurchaseItemsList.ItemsSource = null;
-            PurchaseItemsList.ItemsSource = _cart.ToList();
+            RefreshPurchaseCart();
 
             // auto clear query to speed next scan
             PurchaseItemQueryBox.Text = "";
@@ -392,8 +533,8 @@ namespace POS_System
             if (PurchaseItemsList.SelectedItem is not PurchaseCartRow row) return;
             _cart.Remove(row);
 
-            PurchaseItemsList.ItemsSource = null;
-            PurchaseItemsList.ItemsSource = _cart.ToList();
+            RefreshPurchaseCart();
+            
 
             RecalcTotals();
         }
@@ -463,6 +604,28 @@ namespace POS_System
                 return;
             }
 
+            if (discount < 0)
+            {
+                MessageBox.Show("Discount لا يمكن يكون سالب.");
+                return;
+            }
+
+            if (paid < 0)
+            {
+                MessageBox.Show("Paid لا يمكن يكون سالب.");
+                return;
+            }
+
+            var subTotal = _cart.Sum(x => x.LineTotal);
+            var total = subTotal - discount;
+            if (total < 0) total = 0;
+
+            if (paid > total)
+            {
+                MessageBox.Show("Paid أكبر من إجمالي الفاتورة.");
+                return;
+            }
+
             var items = _cart.Select(x => new PurchaseItemInput
             {
                 VariantId = x.VariantId,
@@ -487,7 +650,7 @@ namespace POS_System
 
                 // reset cart
                 _cart.Clear();
-                PurchaseItemsList.ItemsSource = null;
+                RefreshPurchaseCart();
                 DiscountBox.Text = "0";
                 PaidBox.Text = "0";
                 PurchaseNotesBox.Text = "";
@@ -495,6 +658,9 @@ namespace POS_System
 
                 RefreshInventory();
                 RefreshReport();
+                RefreshPurchaseHistory();
+                PurchaseItemQueryBox.Focus();
+                Keyboard.Focus(PurchaseItemQueryBox);
             }
             catch (Exception ex)
             {
@@ -616,6 +782,13 @@ namespace POS_System
             SaveMovement(v.Id, diff, "ADJUST", null, notes);
 
             MessageBox.Show($"تم تسجيل الجرد. Current={current} Actual={actual} Diff={diff}");
+
+            StocktakeQueryBox.Text = "";
+            ActualQtyBox.Text = "0";
+            StocktakeNotesBox.Text = "";
+            StocktakeResultsList.ItemsSource = null;
+            StocktakeQueryBox.Focus();
+            Keyboard.Focus(StocktakeQueryBox);
 
             RefreshInventory();
             RefreshReport();

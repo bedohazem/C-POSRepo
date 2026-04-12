@@ -2,7 +2,8 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Background="{StaticResource Bg}"
-      Foreground="{StaticResource TextBrush}" Opacity="0">
+      Foreground="{StaticResource TextBrush}" Opacity="0"
+      Loaded="Page_Loaded">
 
     
     <Page.RenderTransform>
@@ -245,6 +246,212 @@
                                         Click="SavePurchase_Click"/>
                             </StackPanel>
                         </Grid>
+                    </Grid>
+                </Border>
+            </TabItem>
+            <TabItem Header="دفعات الموردين">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                <TextBlock Text="المورد" Opacity="0.8" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="SupplierPaymentSupplierBox"
+                                          Height="36"
+                                          Style="{StaticResource DiscountComboStyle}"
+                                          SelectionChanged="SupplierPaymentSupplierBox_SelectionChanged">
+
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                <TextBlock Text="المبلغ" Opacity="0.8" Margin="0,0,0,6"/>
+                                <TextBox x:Name="SupplierPaymentAmountBox"
+                             Style="{StaticResource DarkTextBoxStyle}"
+                             Text="0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                                <TextBlock Text="ملاحظات" Opacity="0.8" Margin="0,0,0,6"/>
+                                <TextBox x:Name="SupplierPaymentNotesBox"
+                             Style="{StaticResource DarkTextBoxStyle}"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="3"
+                        Margin="0,26,0,0"
+                        MinWidth="120"
+                        Height="36"
+                        Content="تسجيل دفعة"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Click="SaveSupplierPayment_Click"/>
+                        </Grid>
+
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock x:Name="SupplierPaymentTotalPurchasesText" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="SupplierPaymentInvoicePaidText" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="SupplierPaymentExtraPaidText" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="SupplierPaymentDueText"/>
+                        </StackPanel>
+
+                        <ListView Grid.Row="2"
+                      x:Name="SupplierPaymentsList"
+                      Style="{StaticResource DarkListViewStyle}"
+                      ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Id" DisplayMemberBinding="{Binding Id}" Width="70"/>
+                                    <GridViewColumn Header="Supplier" DisplayMemberBinding="{Binding SupplierName}" Width="180"/>
+                                    <GridViewColumn Header="AtUtc" DisplayMemberBinding="{Binding AtUtc}" Width="180"/>
+                                    <GridViewColumn Header="Amount" DisplayMemberBinding="{Binding Amount, StringFormat={}{0:0.00}}" Width="100"/>
+                                    <GridViewColumn Header="Notes" DisplayMemberBinding="{Binding Notes}" Width="220"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Grid>
+                </Border>
+            </TabItem>
+            <TabItem Header="سجل المشتريات">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                            <TextBox x:Name="PurchaseHistorySearchBox"
+                         Width="280"
+                         Style="{StaticResource DarkTextBoxStyle}"
+                         ToolTip="بحث برقم الفاتورة أو المورد أو الملاحظات"
+                         TextChanged="PurchaseHistorySearchBox_TextChanged"/>
+
+                            <Button Content="Refresh"
+                        Margin="10,0,0,0"
+                        Style="{StaticResource DarkButtonStyle}"
+                        Click="RefreshPurchaseHistory_Click"/>
+                        </DockPanel>
+
+                        <ListView Grid.Row="1"
+                      x:Name="PurchaseHistoryList"
+                      Style="{StaticResource DarkListViewStyle}"
+                      ItemContainerStyle="{StaticResource DarkGridViewItemStyle}"
+                      SelectionChanged="PurchaseHistoryList_SelectionChanged"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Id" DisplayMemberBinding="{Binding Id}" Width="70"/>
+                                    <GridViewColumn Header="Supplier" DisplayMemberBinding="{Binding SupplierName}" Width="180"/>
+                                    <GridViewColumn Header="AtUtc" DisplayMemberBinding="{Binding AtUtc}" Width="170"/>
+                                    <GridViewColumn Header="SubTotal" DisplayMemberBinding="{Binding SubTotal, StringFormat={}{0:0.00}}" Width="90"/>
+                                    <GridViewColumn Header="Discount" DisplayMemberBinding="{Binding Discount, StringFormat={}{0:0.00}}" Width="90"/>
+                                    <GridViewColumn Header="Total" DisplayMemberBinding="{Binding Total, StringFormat={}{0:0.00}}" Width="90"/>
+                                    <GridViewColumn Header="Paid" DisplayMemberBinding="{Binding Paid, StringFormat={}{0:0.00}}" Width="90"/>
+                                    <GridViewColumn Header="Due" DisplayMemberBinding="{Binding Due, StringFormat={}{0:0.00}}" Width="90"/>
+                                    <GridViewColumn Header="Notes" DisplayMemberBinding="{Binding Notes}" Width="180"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+
+                        <Border Grid.Row="2"
+                    Margin="0,10,0,0"
+                    Padding="10"
+                    CornerRadius="12"
+                    BorderBrush="{StaticResource BorderBrushDark}"
+                    BorderThickness="1"
+                    Background="{StaticResource Bg}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top"
+                               Text="تفاصيل الفاتورة المحددة"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,8"/>
+
+                                <ListView x:Name="PurchaseHistoryItemsList"
+                              Height="180"
+                              Style="{StaticResource DarkListViewStyle}"
+                              ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Product" DisplayMemberBinding="{Binding ProductName}" Width="180"/>
+                                            <GridViewColumn Header="Barcode" DisplayMemberBinding="{Binding Barcode}" Width="140"/>
+                                            <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Size}" Width="70"/>
+                                            <GridViewColumn Header="Color" DisplayMemberBinding="{Binding Color}" Width="100"/>
+                                            <GridViewColumn Header="Qty" DisplayMemberBinding="{Binding Qty, StringFormat={}{0:0.##}}" Width="70"/>
+                                            <GridViewColumn Header="UnitCost" DisplayMemberBinding="{Binding UnitCost, StringFormat={}{0:0.00}}" Width="90"/>
+                                            <GridViewColumn Header="LineTotal" DisplayMemberBinding="{Binding LineTotal, StringFormat={}{0:0.00}}" Width="100"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </TabItem>
+            <TabItem Header="حساب المورد">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Supplier Select -->
+                        <ComboBox x:Name="StatementSupplierBox"
+                      Width="250"
+                      DisplayMemberPath="Name"
+                      SelectionChanged="StatementSupplierBox_Changed"/>
+
+                        <!-- List -->
+                        <ListView Grid.Row="1"
+                      x:Name="SupplierStatementList"
+                      Style="{StaticResource DarkListViewStyle}"
+                      ItemContainerStyle="{StaticResource DarkGridViewItemStyle}">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Invoice" DisplayMemberBinding="{Binding PurchaseId}" Width="80"/>
+                                    <GridViewColumn Header="Date" DisplayMemberBinding="{Binding AtUtc}" Width="150"/>
+                                    <GridViewColumn Header="Total" DisplayMemberBinding="{Binding Total}" Width="100"/>
+                                    <GridViewColumn Header="Paid" DisplayMemberBinding="{Binding Paid}" Width="100"/>
+                                    <GridViewColumn Header="Due" DisplayMemberBinding="{Binding Due}" Width="100"/>
+                                    <GridViewColumn Header="Notes" DisplayMemberBinding="{Binding Notes}" Width="200"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+
+                        <!-- Totals -->
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                            <TextBlock x:Name="StatementTotalText" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="StatementPaidText" Margin="0,0,20,0"/>
+                            <TextBlock x:Name="StatementDueText"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
             </TabItem>
